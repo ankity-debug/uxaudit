@@ -131,44 +131,44 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
     <div className="min-h-screen bg-white" style={{fontFamily: 'Inter, sans-serif'}}>
       <div className="max-w-[800px] mx-auto px-6 py-10">
         
+        {/* Action Buttons Banner - Above yellow banner, right aligned */}
+        <div className="flex justify-end gap-3 mb-8 action-buttons-banner">
+          <button
+            onClick={handleDeepDive}
+            className="flex items-center gap-2 px-6 py-3 bg-yellow-400 text-gray-900 rounded-xl font-medium hover:bg-yellow-500 transition-colors"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M9.663 17H4.5A2.5 2.5 0 0 1 2 14.5V9A2.5 2.5 0 0 1 4.5 6.5H9.663A1 1 0 0 1 10.5 7V16A1 1 0 0 1 9.663 17Z" fill="currentColor"/>
+              <path d="M13.5 6.5H19.5A2.5 2.5 0 0 1 22 9V14.5A2.5 2.5 0 0 1 19.5 17H13.5A1 1 0 0 1 12.5 16V7A1 1 0 0 1 13.5 6.5Z" fill="currentColor"/>
+            </svg>
+            Deep Dive Analysis
+          </button>
+          <button
+            onClick={handleDownloadPDF}
+            className="flex items-center gap-2 px-6 py-3 bg-gray-900 text-white rounded-xl font-medium hover:bg-gray-800 transition-colors"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 16L7 11L8.4 9.6L11 12.2V4H13V12.2L15.6 9.6L17 11L12 16Z" fill="currentColor"/>
+              <path d="M5 20V18H19V20H5Z" fill="currentColor"/>
+            </svg>
+            Download PDF
+          </button>
+          <button
+            onClick={handleNewAudit}
+            className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-gray-900 text-gray-900 rounded-xl font-medium hover:bg-gray-50 transition-colors"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 4L12 20M4 12L20 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+            New Audit
+          </button>
+        </div>
+
         <div id="audit-report-content">
         {/* Header Section */}
         <div className="relative overflow-hidden rounded-2xl p-10 mb-10" style={{
           background: 'linear-gradient(135deg, #FAE100 0%, #F0D000 100%)'
         }}>
-
-          {/* Action Buttons Banner */}
-          <div className="flex justify-end gap-3 mb-8 action-buttons-banner">
-            <button
-              onClick={handleDeepDive}
-              className="flex items-center gap-2 px-6 py-3 bg-yellow-400 text-gray-900 rounded-xl font-medium hover:bg-yellow-500 transition-colors"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M9.663 17H4.5A2.5 2.5 0 0 1 2 14.5V9A2.5 2.5 0 0 1 4.5 6.5H9.663A1 1 0 0 1 10.5 7V16A1 1 0 0 1 9.663 17Z" fill="currentColor"/>
-                <path d="M13.5 6.5H19.5A2.5 2.5 0 0 1 22 9V14.5A2.5 2.5 0 0 1 19.5 17H13.5A1 1 0 0 1 12.5 16V7A1 1 0 0 1 13.5 6.5Z" fill="currentColor"/>
-              </svg>
-              Deep Dive Analysis
-            </button>
-            <button
-              onClick={handleDownloadPDF}
-              className="flex items-center gap-2 px-6 py-3 bg-gray-900 text-white rounded-xl font-medium hover:bg-gray-800 transition-colors"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 16L7 11L8.4 9.6L11 12.2V4H13V12.2L15.6 9.6L17 11L12 16Z" fill="currentColor"/>
-                <path d="M5 20V18H19V20H5Z" fill="currentColor"/>
-              </svg>
-              Download PDF
-            </button>
-            <button
-              onClick={handleNewAudit}
-              className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-gray-900 text-gray-900 rounded-xl font-medium hover:bg-gray-50 transition-colors"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 4L12 20M4 12L20 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-              </svg>
-              New Audit
-            </button>
-          </div>
 
           {/* Company Name */}
           <div className="flex items-center text-sm font-normal text-black mb-2">
@@ -183,6 +183,15 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
               <div className="w-2 h-2 bg-white rounded-full mr-2"></div>
             )}
             {getPlatformName()}
+          </div>
+
+          {/* Analysis Date */}
+          <div className="text-sm font-normal text-black mb-4 opacity-75">
+            Analysis Date: {new Date(data.timestamp).toLocaleDateString('en-US', { 
+              year: 'numeric', 
+              month: 'long', 
+              day: 'numeric' 
+            })}
           </div>
 
           {/* Title */}
@@ -204,7 +213,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
             <div className="grid grid-cols-4 gap-4">
               {getCategoryScores().map((category, i) => (
                 <div key={i} className="flex flex-col items-center text-center">
-                  <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center text-lg font-semibold text-black mb-3 shadow-sm">
+                  <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center text-lg font-semibold text-black mb-3 shadow-lg">
                     {category.isCount ? category.score : category.score.toFixed(0)}
                   </div>
                   <div className="text-xs font-medium text-black leading-tight">
@@ -223,13 +232,6 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
           </h2>
           <p className="text-sm font-normal leading-relaxed mb-6" style={{color: '#6d758f'}}>
             {data.summary}
-          </p>
-          <p className="text-sm font-normal leading-relaxed" style={{color: '#6d758f'}}>
-            Analysis Date: {new Date(data.timestamp).toLocaleDateString('en-US', { 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric' 
-            })} • {data.issues.length} Issues Identified • Overall Grade: {data.scores.overall.grade}
           </p>
         </div>
 
