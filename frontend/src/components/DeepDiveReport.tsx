@@ -120,8 +120,24 @@ export const DeepDiveReport: React.FC<DeepDiveReportProps> = ({ data }) => {
     <div className="min-h-screen bg-white" style={{fontFamily: 'Inter, sans-serif'}}>
       <div className="max-w-[800px] mx-auto px-6 py-10">
         
-        {/* Action Buttons Banner */}
-        <div className="flex justify-center gap-3 mb-8 action-buttons-banner">
+        {/* Action Buttons Banner - Above yellow banner, right aligned */}
+        <div className="flex justify-end gap-3 mb-8 action-buttons-banner">
+          <button
+            onClick={() => {
+              // Store the current audit data for the main report
+              sessionStorage.setItem('mainAuditData', JSON.stringify(data));
+              sessionStorage.setItem('deepDiveAuditData', JSON.stringify(data));
+              // Navigate to dedicated report page
+              window.location.href = '/report';
+            }}
+            className="flex items-center gap-2 px-6 py-3 bg-yellow-400 text-gray-900 rounded-xl font-medium hover:bg-yellow-500 transition-colors"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M19 12H5M12 19L5 12L12 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Back to Report
+          </button>
+          
           <button
             onClick={handleDownloadPDF}
             className="flex items-center gap-2 px-6 py-3 bg-gray-900 text-white rounded-xl font-medium hover:bg-gray-800 transition-colors"
@@ -142,26 +158,7 @@ export const DeepDiveReport: React.FC<DeepDiveReportProps> = ({ data }) => {
             </svg>
             New Audit
           </button>
-          
-          <button
-            onClick={() => {
-              // Store the current audit data for the main report
-              sessionStorage.setItem('mainAuditData', JSON.stringify(data));
-              sessionStorage.setItem('deepDiveAuditData', JSON.stringify(data));
-              // Navigate to dedicated report page
-              window.location.href = '/report';
-            }}
-            className="flex items-center gap-2 px-6 py-3 bg-yellow-400 text-gray-900 rounded-xl font-medium hover:bg-yellow-500 transition-colors"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M19 12H5M12 19L5 12L12 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            Back to Report
-          </button>
         </div>
-        
-        {/* PDF Content Wrapper */}
-        <div id="deep-dive-content">
         
         {/* Enhanced Header Section */}
         <div className="relative overflow-hidden rounded-2xl p-10 mb-10" style={{
@@ -207,6 +204,9 @@ export const DeepDiveReport: React.FC<DeepDiveReportProps> = ({ data }) => {
             </div>
           </div>
         </div>
+        
+        {/* PDF Content Wrapper */}
+        <div id="deep-dive-content">
 
         {/* Executive Summary Section */}
         <div className="my-10">
