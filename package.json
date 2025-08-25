@@ -1,0 +1,21 @@
+{
+  "name": "ux-audit-platform",
+  "version": "1.0.0",
+  "description": "AI-powered UX audit platform using Gemini AI",
+  "main": "index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build": "npm run build:frontend && npm run build:backend",
+    "build:frontend": "cd frontend && npm run build",
+    "build:backend": "cd backend && npm run build",
+    "start": "cd backend && npm start"
+  },
+  "keywords": ["ux", "audit", "ai", "gemini", "design"],
+  "author": "LY Design",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.0"
+  }
+}
