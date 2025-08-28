@@ -46,7 +46,11 @@ function AppContent() {
         formData.append('image', input.value as File);
       }
 
-      const response = await fetch('http://localhost:3001/api/audit', {
+      const apiUrl = process.env.NODE_ENV === 'production' 
+        ? '/api/audit' 
+        : 'http://localhost:3001/api/audit';
+      
+      const response = await fetch(apiUrl, {
         method: 'POST',
         body: formData,
       });
