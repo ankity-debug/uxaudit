@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { AuditData } from '../types';
 import { getRelevantCaseStudies } from '../data/caseStudies';
 import html2pdf from 'html2pdf.js';
@@ -9,6 +9,142 @@ interface AuditReportProps {
 
 export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
   const [faviconError, setFaviconError] = useState(false);
+  // Deduplication & phrasing helpers to keep sections distinctive
+  const normalizeText = (t: string) =>
+    t
+      .toLowerCase()
+      .replace(/\b(the|a|an|and|or|to|for|of|on|in|at|with|we|you|your|our)\b/g, ' ')
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+  const getThemeId = (t: string) => {
+    const s = normalizeText(t);
+    if (/44px|tap|touch|click target|target size/.test(s)) return 'tap-target';
+    if (/(navigation|nav|menu).*(different|inconsistent|across pages|vary|behaviors)/.test(s)) return 'nav-consistency';
+    if (/contrast|low contrast/.test(s)) return 'contrast';
+    if (/form|validation|error|label/.test(s)) return 'forms';
+    if (/cta|call to action|primary action|button prominence/.test(s)) return 'cta';
+    if (/responsive|mobile|smaller screen|viewport/.test(s)) return 'responsive';
+    if (/copy|labeling|microcopy|ambiguous/.test(s)) return 'copy-clarity';
+    if (/hierarchy|information architecture|ia|findability|grouping/.test(s)) return 'ia-hierarchy';
+    if (/feedback|status|loading|progress|spinner/.test(s)) return 'feedback-status';
+    return s.split(' ').slice(0, 5).join('-');
+  };
+
+  const themePhrases: Record<string, { overall: string; journey: string; heuristic: string }> = {
+    'tap-target': {
+      overall: 'Standardize 44px+ tap targets across mobile to reduce misses.',
+      journey: 'Sub‑44px tap targets in critical flows lead to missed taps.',
+      heuristic: 'Tap targets below 44px reduce usability; increase to 44px+.'
+    },
+    'nav-consistency': {
+      overall: 'Unify navigation patterns (labels, placement, behavior) across pages.',
+      journey: 'Navigation changes between pages create disorientation in multi‑step tasks.',
+      heuristic: 'Breaks “Consistency & Standards”; align styles and interactions.'
+    },
+    contrast: {
+      overall: 'Raise text contrast to WCAG 2.2 AA (≥4.5:1) for readability.',
+      journey: 'Low‑contrast text slows scanning on key pages.',
+      heuristic: 'Contrast fails AA in components; adjust colors/weights.'
+    },
+    forms: {
+      overall: 'Harden forms: labels, inline validation, and helpful errors.',
+      journey: 'Missing labels/validation cause retries and drop‑off.',
+      heuristic: 'Violates error prevention/recognition; add labels and real‑time checks.'
+    },
+    cta: {
+      overall: 'Clarify primary actions with consistent, prominent CTA styling.',
+      journey: 'Ambiguous CTAs delay decisions in key steps.',
+      heuristic: 'Weak hierarchy; strengthen CTA prominence and state feedback.'
+    },
+    responsive: {
+      overall: 'Fix responsive breakpoints; ensure components adapt at sm/md.',
+      journey: 'On mobile, cramped UI and shifts slow task completion.',
+      heuristic: 'Improve flexibility/efficiency with mobile‑first patterns.'
+    },
+    'copy-clarity': {
+      overall: 'Tighten copy and labels to cut ambiguity and cognitive load.',
+      journey: 'Vague labels force rereads during flows.',
+      heuristic: 'Match between system and real world: use plain language.'
+    },
+    'ia-hierarchy': {
+      overall: 'Strengthen information hierarchy and IA for scanability and findability.',
+      journey: 'Weak hierarchy hides key info at decision points.',
+      heuristic: 'Favor recognition over recall: group and label clearly.'
+    },
+    'feedback-status': {
+      overall: 'Add timely, clear feedback for async actions and long tasks.',
+      journey: 'Missing progress cues create uncertainty during waits.',
+      heuristic: 'Visibility of system status: surface loading/progress states.'
+    }
+  };
+
+  const rewriteForContext = (
+    raw: string,
+    context: 'overall' | 'journey' | 'heuristic',
+    heuristicName?: string
+  ) => {
+    const theme = getThemeId(raw);
+    const map = themePhrases[theme];
+    if (map) {
+      if (context === 'heuristic' && heuristicName) {
+        return `${map.heuristic} (${heuristicName}).`;
+      }
+      return map[context];
+    }
+    const base = raw.replace(/\s+/g, ' ').trim().replace(/\.$/, '');
+    if (context === 'overall') return `Elevate: ${base}.`;
+    if (context === 'journey') return `In‑flow impact: ${base}.`;
+    return `Guideline gap: ${base}.`;
+  };
+
+  const uniqueByTheme = (items: { text: string; extra?: any }[], seen: Set<string>) => {
+    const out: { text: string; theme: string; extra?: any }[] = [];
+    for (const it of items) {
+      const theme = getThemeId(it.text);
+      if (seen.has(theme)) continue;
+      seen.add(theme);
+      out.push({ text: it.text, theme, extra: it.extra });
+      if (seen.size > 64) break;
+    }
+    return out;
+  };
+
+  const { overallPoints, heuristicItems, filteredFixes } = useMemo(() => {
+    const seen = new Set<string>();
+
+    // Overall points from recommendations; backfill from issues if sparse
+    const overallPool = (data.recommendations || []).map((r) => ({ text: r }));
+    const overall = uniqueByTheme(overallPool, seen).slice(0, 4);
+
+    // Heuristics points from heuristic issues
+    const heurPool = data.issues
+      .filter((i) => i.category === 'heuristics')
+      .map((i) => ({ text: i.description || i.title, extra: { heuristic: i.heuristic } }));
+    const heur = uniqueByTheme(heurPool, seen).slice(0, 5);
+
+    // Filter fixes to avoid repetition by theme
+    const usedThemes = new Set([
+      ...overall.map((o) => o.theme),
+      ...heur.map((h) => h.theme)
+    ]);
+    const fixes = data.issues
+      .filter((i) => {
+        const key = getThemeId(`${i.title || ''} ${i.description || ''} ${i.recommendation || ''}`);
+        return !usedThemes.has(key);
+      })
+      .slice(0, 6);
+
+    return {
+      overallPoints: overall.map((o) => rewriteForContext(o.text, 'overall')),
+      heuristicItems: heur.map((h) => ({
+        text: rewriteForContext(h.text, 'heuristic'),
+        label: h.extra?.heuristic || undefined
+      })),
+      filteredFixes: fixes
+    };
+  }, [data]);
   // Get platform name from URL or use default
   const getPlatformName = () => {
     if (data.url) {
@@ -40,53 +176,92 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
     return getRelevantCaseStudies(data.url, data.summary, 2);
   };
 
-  // Get heuristic violations (Nielsen's 10)
+  // Get heuristic points (prefer deduped from issues; fallback to backend heuristicViolations)
   const getHeuristicViolations = () => {
-    return data.issues.filter(issue => issue.category === 'heuristics').slice(0, 5);
+    if (heuristicItems && heuristicItems.length > 0) {
+      return heuristicItems.map((h, idx) => ({ id: `h-${idx}`, title: h.text, heuristic: h.label, category: 'heuristics' } as any));
+    }
+    const hv = (data as any).heuristicViolations || [];
+    if (Array.isArray(hv) && hv.length > 0) {
+      return hv.map((v: any, idx: number) => ({
+        id: `hv-${idx}`,
+        title: v.violation || v.issue || v.heuristic || 'Heuristic issue',
+        description: v.violation || v.issue || '',
+        heuristic: v.heuristic,
+        element: v.element,
+        category: 'heuristics'
+      }));
+    }
+    return [] as any[];
   };
 
-  // Get recommended fixes
+  // Get recommended fixes (prefer deduped issues; fallback to prioritizedFixes from backend)
   const getRecommendedFixes = () => {
-    return data.issues.slice(0, 6);
+    if (filteredFixes && filteredFixes.length > 0) return filteredFixes;
+    const pf = (data as any).prioritizedFixes || [];
+    if (Array.isArray(pf) && pf.length > 0) {
+      return pf.map((f: any, idx: number) => ({
+        id: `pf-${idx}`,
+        title: f.recommendation || 'Recommendation',
+        recommendation: f.recommendation || '',
+        severity: f.priority === 'high' ? 'major' : 'minor',
+        category: 'recommendation'
+      }));
+    }
+    return [] as any[];
   };
 
-  // Format journey steps from issues and recommendations
+  // Journey points (persona-driven, no static fallbacks)
+  const personaJourney = data.personaDrivenJourney;
+  const scenarioPersona = personaJourney?.persona || '';
+  const scenarioGoal = useMemo(() => {
+    if (personaJourney?.personaReasoning) return personaJourney.personaReasoning;
+    const first = personaJourney?.steps?.[0]?.action;
+    return first ? first : '';
+  }, [personaJourney]);
+
   const getCurrentExperience = () => {
-    const majorIssues = data.issues.filter(issue => issue.severity === 'major').slice(0, 3);
-    return majorIssues.length > 0 ? majorIssues.map(issue => issue.description) : [
-      'Users experiencing navigation difficulties',
-      'Unclear content hierarchy and information architecture',
-      'Accessibility barriers affecting user interaction'
-    ];
+    if (!personaJourney || !personaJourney.steps?.length) return [] as string[];
+    // collect one issue phrase from each step if present
+    const pts: string[] = [];
+    personaJourney.steps.forEach((s) => {
+      if (s.issues && s.issues.length) pts.push(s.issues[0]);
+    });
+    return pts.slice(0, 3);
   };
 
   const getOptimizedExperience = () => {
-    const recommendations = data.recommendations.slice(0, 4);
-    return recommendations.length > 0 ? recommendations : [
-      'Enhanced navigation with clear visual hierarchy',
-      'Improved content organization and labeling',
-      'Accessible design following WCAG guidelines',
-      'Streamlined user flows with better feedback'
-    ];
+    if (!personaJourney || !personaJourney.steps?.length) return [] as string[];
+    const pts: string[] = [];
+    personaJourney.steps.forEach((s) => {
+      if (s.improvements && s.improvements.length) pts.push(s.improvements[0]);
+    });
+    return pts.slice(0, 3);
   };
 
-  // Get category scores for heuristics grid
+  // Category metrics (out of 5) synced to AI scores
   const getCategoryScores = () => {
-    const criticalIssues = data.issues.filter(issue => issue.severity === 'critical').length;
-    const majorIssues = data.issues.filter(issue => issue.severity === 'major').length;
-    const minorIssues = data.issues.filter(issue => issue.severity === 'minor').length;
-    
-    // Calculate user impact based on issue severity distribution
-    const userImpactScore = Math.max(0, 100 - (criticalIssues * 25 + majorIssues * 15 + minorIssues * 5));
-    
-    // Calculate conversion risk based on critical and major issues
-    const conversionRisk = Math.max(0, 100 - (criticalIssues * 30 + majorIssues * 15));
-    
+    const norm = (cat: any): number => {
+      if (!cat) return 0;
+      if (typeof cat.score === 'number' && typeof cat.maxScore === 'number' && cat.maxScore > 0) {
+        return (cat.score / cat.maxScore) * 5;
+      }
+      if (typeof cat.percentage === 'number') {
+        return (cat.percentage / 100) * 5;
+      }
+      return 0;
+    };
+
+    const heuristics = norm((data as any).scores?.heuristics);
+    const usability = norm((data as any).scores?.uxLaws);
+    const accessibility = norm((data as any).scores?.accessibility);
+    const conversion = norm((data as any).scores?.copywriting);
+
     return [
-      { label: 'Critical Issues', score: criticalIssues, isCount: true },
-      { label: 'User Impact', score: userImpactScore },
-      { label: 'Accessibility', score: data.scores.accessibility.percentage },
-      { label: 'Conversion Risk', score: conversionRisk }
+      { label: 'Heuristics', score: heuristics },
+      { label: 'Usability', score: usability },
+      { label: 'Accessibility', score: accessibility },
+      { label: 'Conversion', score: conversion }
     ];
   };
 
@@ -116,36 +291,45 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
 
   const handleNewAudit = () => {
     sessionStorage.removeItem('mainAuditData');
-    sessionStorage.removeItem('deepDiveAuditData');
     window.location.href = '/';
   };
 
-  const handleDeepDive = () => {
-    // Store audit data in sessionStorage for deep dive access
-    sessionStorage.setItem('deepDiveAuditData', JSON.stringify(data));
-    // Navigate to deep dive report
-    window.location.href = '/deep-dive';
-  };
 
   return (
-    <div className="min-h-screen bg-white" style={{fontFamily: 'Inter, sans-serif'}}>
-      <div className="max-w-[800px] mx-auto px-6 py-10">
+    <div className="min-h-screen relative" style={{fontFamily: 'Inter, sans-serif'}}>
+      {/* Fixed Grid Background */}
+      <div 
+        className="fixed inset-0 pointer-events-none" 
+        style={{
+          background: `
+            /* overlay on top (semi-transparent) */
+            radial-gradient(circle at 35% 25%,
+              rgba(255,255,255,0.85) 0%,
+              rgba(255,255,255,0.70) 45%,
+              rgba(255,255,255,0.45) 70%,
+              rgba(255,255,255,0.25) 100%),
+            /* grid underneath */
+            repeating-linear-gradient(0deg,
+              rgba(15,23,42,0.14) 0, rgba(15,23,42,0.14) 1px,
+              transparent 1px, transparent 56px),
+            repeating-linear-gradient(90deg,
+              rgba(15,23,42,0.14) 0, rgba(15,23,42,0.14) 1px,
+              transparent 1px, transparent 56px)
+          `,
+          backgroundSize: 'auto, auto, auto',
+          backgroundRepeat: 'no-repeat, repeat, repeat'
+        }}
+      />
+      
+      {/* Content */}
+      <div className="relative z-10">
+        <div className="max-w-[800px] mx-auto px-6 py-10">
         
         {/* Action Buttons Banner - Above yellow banner, right aligned */}
         <div className="flex justify-end gap-3 mb-8 action-buttons-banner">
           <button
-            onClick={handleDeepDive}
-            className="flex items-center gap-2 px-6 py-3 bg-yellow-400 text-gray-900 rounded-xl font-medium hover:bg-yellow-500 transition-colors"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M9.663 17H4.5A2.5 2.5 0 0 1 2 14.5V9A2.5 2.5 0 0 1 4.5 6.5H9.663A1 1 0 0 1 10.5 7V16A1 1 0 0 1 9.663 17Z" fill="currentColor"/>
-              <path d="M13.5 6.5H19.5A2.5 2.5 0 0 1 22 9V14.5A2.5 2.5 0 0 1 19.5 17H13.5A1 1 0 0 1 12.5 16V7A1 1 0 0 1 13.5 6.5Z" fill="currentColor"/>
-            </svg>
-            Deep Dive Analysis
-          </button>
-          <button
             onClick={handleDownloadPDF}
-            className="flex items-center gap-2 px-6 py-3 bg-gray-900 text-white rounded-xl font-medium hover:bg-gray-800 transition-colors"
+            className="flex items-center gap-2 px-6 py-3 bg-gray-900 text-white rounded-xl font-medium hover:bg-gray-800 active:bg-black transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 16L7 11L8.4 9.6L11 12.2V4H13V12.2L15.6 9.6L17 11L12 16Z" fill="currentColor"/>
@@ -155,7 +339,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
           </button>
           <button
             onClick={handleNewAudit}
-            className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-gray-900 text-gray-900 rounded-xl font-medium hover:bg-gray-50 transition-colors"
+            className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-gray-900 text-gray-900 rounded-xl font-medium hover:bg-gray-50 active:bg-gray-100 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 4L12 20M4 12L20 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
@@ -166,32 +350,37 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
 
         <div id="audit-report-content">
         {/* Header Section */}
-        <div className="relative overflow-hidden rounded-2xl p-10 mb-10" style={{
+        <div className="relative overflow-hidden rounded-2xl p-8 mb-10" style={{
           background: 'linear-gradient(135deg, #FAE100 0%, #F0D000 100%)'
         }}>
 
-          {/* Company Name */}
-          <div className="flex items-center text-sm font-normal text-black mb-2">
-            {getFaviconUrl() && !faviconError ? (
-              <img 
-                src={getFaviconUrl()} 
-                alt={`${getPlatformName()} favicon`} 
-                className="w-4 h-4 mr-2 rounded-sm"
-                onError={() => setFaviconError(true)}
-              />
-            ) : (
-              <div className="w-2 h-2 bg-white rounded-full mr-2"></div>
-            )}
-            {getPlatformName()}
-          </div>
-
-          {/* Analysis Date */}
-          <div className="text-sm font-normal text-black mb-4 opacity-75">
-            Analysis Date: {new Date(data.timestamp).toLocaleDateString('en-US', { 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric' 
-            })}
+          {/* Company Favicon and URL */}
+          <div className="flex items-center space-x-3 mb-4">
+            <div className="w-8 h-8 bg-gray-800 rounded-lg flex items-center justify-center">
+              <span className="text-[#FAE100] font-bold text-sm">
+                {data.url ? (
+                  (() => {
+                    try {
+                      const domain = new URL(data.url).hostname;
+                      return domain.charAt(0).toUpperCase();
+                    } catch {
+                      return 'W';
+                    }
+                  })()
+                ) : 'I'}
+              </span>
+            </div>
+            <div className="text-black text-base font-semibold">
+              {data.url ? (
+                (() => {
+                  try {
+                    return new URL(data.url).hostname;
+                  } catch {
+                    return data.url;
+                  }
+                })()
+              ) : 'Uploaded Image'}
+            </div>
           </div>
 
           {/* Title */}
@@ -199,13 +388,21 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
             Audit Breakdown
           </h1>
 
-          {/* Metrics Row */}
-          <div className="flex justify-between items-center">
+          {/* Metrics Row - Updated Layout with Bottom Labels */}
+          <div className="flex justify-between items-end">
             {/* Overall Score */}
-            <div className="flex flex-col items-start">
-              <div className="text-sm font-normal text-black mb-2">Overall UX Score</div>
-              <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center text-3xl font-bold text-black shadow-lg">
-                {(data.scores.overall.score / 10).toFixed(1)}
+            <div className="flex flex-col items-center text-center">
+              <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center text-3xl font-bold text-black shadow-lg mb-3">
+                {(() => {
+                  const ov: any = (data as any).scores?.overall || {};
+                  const val = (typeof ov.score === 'number' && typeof ov.maxScore === 'number' && ov.maxScore > 0)
+                    ? (ov.score / ov.maxScore) * 5
+                    : (typeof ov.percentage === 'number' ? (ov.percentage / 100) * 5 : 0);
+                  return val.toFixed(1);
+                })()}
+              </div>
+              <div className="text-xs font-medium text-black leading-tight">
+                Overall UX Score
               </div>
             </div>
 
@@ -214,7 +411,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
               {getCategoryScores().map((category, i) => (
                 <div key={i} className="flex flex-col items-center text-center">
                   <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center text-lg font-semibold text-black mb-3 shadow-lg">
-                    {category.isCount ? category.score : category.score.toFixed(0)}
+                    {Number.isFinite(category.score) ? category.score.toFixed(1) : '0.0'}
                   </div>
                   <div className="text-xs font-medium text-black leading-tight">
                     {category.label}
@@ -225,43 +422,59 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
           </div>
         </div>
 
-        {/* Platform Section */}
-        <div className="my-10">
-          <h2 className="text-xl font-semibold mb-4" style={{color: '#19213d'}}>
-            Platform/Client Name
-          </h2>
-          <p className="text-sm font-normal leading-relaxed mb-6" style={{color: '#6d758f'}}>
-            {data.summary}
-          </p>
-        </div>
-
-        {/* Overall Insights Section */}
-        <div className="my-10">
-          <h2 className="flex items-center text-xl font-semibold mb-4" style={{color: '#19213d'}}>
-            <span className="w-6 h-6 bg-yellow-300 rounded-md flex items-center justify-center mr-3">
-              💡
-            </span>
-            Overall Insights
-          </h2>
-          <div className="text-sm leading-relaxed" style={{color: '#6d758f'}}>
-            <p className="mb-4">Key findings from the UX audit analysis:</p>
-            <ul className="space-y-2">
-              {data.recommendations.slice(0, 4).map((recommendation, index) => (
-                <li key={index} className="flex items-start">
-                  <span className="text-yellow-300 font-bold mr-2 mt-1">•</span>
-                  <span>{recommendation}</span>
-                </li>
-              ))}
-            </ul>
+        {/* Company Name Section */}
+        <div className="py-8 md:py-10 max-w-[1140px] mx-auto px-4 md:px-6 -mx-6">
+          <div className="text-left">
+            <div className="text-sm text-gray-500 mb-2">
+              Published on: {new Date(data.timestamp).toLocaleDateString('en-US', { 
+                year: 'numeric',
+                month: 'long', 
+                day: 'numeric' 
+              })}
+            </div>
+            <h2 className="text-[28px] md:text-[34px] font-semibold tracking-[-0.01em] mt-2">
+              {data.url ? (
+                (() => {
+                  try {
+                    const url = new URL(data.url);
+                    const domain = url.hostname.replace('www.', '').split('.')[0];
+                    return domain.charAt(0).toUpperCase() + domain.slice(1);
+                  } catch {
+                    return 'Company Name';
+                  }
+                })()
+              ) : 'Company Name'}
+            </h2>
+            <div className="max-w-[70ch] mt-3">
+              <p className="text-[15px] md:text-base text-gray-700 leading-relaxed">
+                {data.summary}
+              </p>
+            </div>
           </div>
         </div>
 
-        {/* Screenshots Section */}
-        <div className="my-10">
-          <h2 className="flex items-center text-xl font-semibold mb-6" style={{color: '#19213d'}}>
-            <span className="w-6 h-6 bg-yellow-300 rounded-md flex items-center justify-center mr-3">
-              📸
-            </span>
+        {/* Overall Insights Section - render only if recommendations present */}
+        {overallPoints.length > 0 && (
+        <div className="py-8 md:py-10 max-w-[1140px] mx-auto px-4 md:px-6 -mx-6">
+          <div className="text-left">
+            <h2 className="text-[28px] md:text-[34px] font-semibold tracking-[-0.01em]">Overall Insights</h2>
+            <p className="font-medium text-gray-800 mt-2">The deep, non-obvious findings about the user experience.</p>
+          </div>
+          <ul className="mt-4 space-y-2">
+            {overallPoints.map((point, index) => (
+              <li key={index} className="flex items-start max-w-[70ch]">
+                <span className="h-1.5 w-1.5 rounded-full bg-yellow-400 mt-2 mr-3"></span>
+                <span className="text-[15px] md:text-base text-gray-700 leading-relaxed">{point}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        )}
+
+        {/* Screenshots Section - render only if image available */}
+        {data.imageUrl && (
+        <div className="py-8 md:py-10 max-w-[1140px] mx-auto px-4 md:px-6 -mx-6">
+          <h2 className="text-[28px] md:text-[34px] font-semibold tracking-[-0.01em] mb-6" style={{color: '#19213d'}}>
             Analysis Screenshot
           </h2>
           <div className="rounded-xl p-6" style={{background: '#f1f3f7'}}>
@@ -286,41 +499,62 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
             )}
           </div>
         </div>
+        )}
 
-        {/* User Journey Map Section */}
-        <div className="my-10">
-          <h2 className="flex items-center text-xl font-semibold mb-6" style={{color: '#19213d'}}>
-            <span className="w-6 h-6 bg-yellow-300 rounded-md flex items-center justify-center mr-3">
-              🗺️
-            </span>
-            User Journey Map
-          </h2>
-          <div className="grid grid-cols-2 gap-8">
-            <div>
-              <h4 className="text-base font-semibold mb-4" style={{color: '#19213d'}}>
-                Current User Experience
-              </h4>
+        {/* User Journey Map Section - persona driven only */}
+        {personaJourney && personaJourney.steps && personaJourney.steps.length > 0 && (
+        <div className="py-8 md:py-10 max-w-[1140px] mx-auto px-4 md:px-6 -mx-6">
+          <div className="text-left">
+            <h2 className="text-[28px] md:text-[34px] font-semibold tracking-[-0.01em]">User Journey Map</h2>
+            <p className="font-medium text-gray-800 mt-2">Persona‑based pathway derived from AI analysis.</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+            {/* Current Experience Card */}
+            <div className="rounded-2xl border border-neutral-200 p-6 bg-white transition-transform duration-300 hover:-translate-y-0.5">
+              <div className="mb-4">
+                <h3 className="text-lg font-semibold mb-1">Current User Experience</h3>
+                <p className="text-sm text-gray-600 italic">
+                  {scenarioPersona && (
+                    <>
+                      Persona: <span className="font-medium">{scenarioPersona}</span>.{' '}
+                    </>
+                  )}
+                  {scenarioGoal && (
+                    <>
+                      Scenario: <span className="font-medium">{scenarioPersona || 'User'} wants to {scenarioGoal}</span>.
+                    </>
+                  )}
+                </p>
+              </div>
               <div className="space-y-4">
-                {getCurrentExperience().map((experience, index) => (
-                  <div key={index} className="flex items-start">
-                    <div className="w-5 h-5 bg-red-400 rounded-full mr-3 mt-1 flex-shrink-0"></div>
-                    <div className="text-sm leading-relaxed" style={{color: '#6d758f'}}>
-                      {experience}
+                {getCurrentExperience().slice(0, 3).map((experience, index) => (
+                  <div key={index} className="flex gap-3 p-2 rounded-xl hover:bg-neutral-50 transition">
+                    <div className="w-6 h-6 bg-yellow-400 rounded-full grid place-items-center flex-shrink-0">
+                      <span className="text-sm font-bold">{index + 1}</span>
+                    </div>
+                    <div>
+                      <h4 className="font-semibold">Issue identified</h4>
+                      <p className="text-sm text-gray-600">{experience}</p>
                     </div>
                   </div>
                 ))}
               </div>
             </div>
-            <div>
-              <h4 className="text-base font-semibold mb-4" style={{color: '#19213d'}}>
-                Optimized User Experience
-              </h4>
+            {/* Optimized Experience Card */}
+            <div className="rounded-2xl border border-neutral-200 p-6 bg-white transition-transform duration-300 hover:-translate-y-0.5">
+              <div className="mb-4">
+                <h3 className="text-lg font-semibold mb-1">Optimized User Experience</h3>
+                <p className="text-sm text-gray-600 italic">Enhanced flow with recommended improvements for the same persona.</p>
+              </div>
               <div className="space-y-4">
-                {getOptimizedExperience().map((experience, index) => (
-                  <div key={index} className="flex items-start">
-                    <div className="w-5 h-5 bg-green-400 rounded-full mr-3 mt-1 flex-shrink-0"></div>
-                    <div className="text-sm leading-relaxed" style={{color: '#6d758f'}}>
-                      {experience}
+                {getOptimizedExperience().slice(0, 3).map((experience, index) => (
+                  <div key={index} className="flex gap-3 p-2 rounded-xl hover:bg-neutral-50 transition">
+                    <div className="w-6 h-6 bg-yellow-400 rounded-full grid place-items-center flex-shrink-0">
+                      <span className="text-sm font-bold">{index + 1}</span>
+                    </div>
+                    <div>
+                      <h4 className="font-semibold">Improved experience</h4>
+                      <p className="text-sm text-gray-600">{typeof experience === 'string' ? experience : `Enhancement: ${experience}`}</p>
                     </div>
                   </div>
                 ))}
@@ -328,29 +562,33 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
             </div>
           </div>
         </div>
+        )}
 
-        {/* Heuristic Violations Section */}
-        <div className="my-10">
-          <h2 className="flex items-center text-xl font-semibold mb-6" style={{color: '#19213d'}}>
-            <span className="w-6 h-6 bg-yellow-300 rounded-md flex items-center justify-center mr-3">
-              ⚠️
-            </span>
-            Heuristic Violations
-          </h2>
-          <div className="space-y-3">
+        {/* Heuristic Violations Section - left aligned */}
+        <div className="py-8 md:py-10 max-w-[1140px] mx-auto px-4 md:px-6 -mx-6">
+          <div className="text-left">
+            <h2 className="text-[28px] md:text-[34px] font-semibold tracking-[-0.01em]">Heuristic Violations</h2>
+            <p className="font-medium text-gray-800 mt-2">Identified issues based on Nielsen's 10 Usability Heuristics.</p>
+          </div>
+          <div className="space-y-2 mt-6">
             {getHeuristicViolations().length > 0 ? (
               getHeuristicViolations().map((violation, index) => (
-                <div key={violation.id} className="flex items-start p-4 rounded-lg" style={{background: '#f1f3f7'}}>
-                  <div className="w-5 h-5 bg-red-400 rounded-full mr-3 mt-1 flex-shrink-0 flex items-center justify-center">
-                    <span className="text-white text-xs font-bold">{index + 1}</span>
+                <div key={violation.id} className="flex gap-3 items-start p-3 rounded-xl hover:bg-neutral-50 transition">
+                  <div className="h-6 w-6 rounded-full bg-yellow-400 text-[12px] font-semibold grid place-items-center mt-0.5">
+                    {index + 1}
                   </div>
-                  <div>
-                    <div className="text-sm font-medium leading-relaxed text-black mb-1">
-                      {violation.heuristic || violation.title}
+                  <div className="flex-1">
+                    <div className="flex items-start gap-2 flex-wrap">
+                      <h4 className="font-semibold text-[#111]">{violation.title}</h4>
+                      {violation.heuristic && (
+                        <span className="text-[11px] px-2 py-1 rounded-full bg-neutral-100 border border-neutral-300 text-neutral-800">
+                          {violation.heuristic}
+                        </span>
+                      )}
                     </div>
-                    <div className="text-sm leading-relaxed" style={{color: '#6d758f'}}>
-                      {violation.description}
-                    </div>
+                    {violation.description && (
+                      <p className="text-sm text-gray-600 mt-1">{violation.description}</p>
+                    )}
                     {violation.element && (
                       <div className="text-xs mt-1 px-2 py-1 bg-gray-200 rounded inline-block">
                         Element: {violation.element}
@@ -360,82 +598,89 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
                 </div>
               ))
             ) : (
-              <div className="text-sm" style={{color: '#6d758f'}}>
-                <p>No specific heuristic violations detected. The interface generally follows usability principles.</p>
+              <div className="flex gap-3 items-start p-3 rounded-xl hover:bg-neutral-50 transition">
+                <div className="h-6 w-6 rounded-full bg-green-400 text-[12px] font-semibold grid place-items-center mt-0.5">
+                  ✓
+                </div>
+                <div>
+                  <h4 className="font-semibold">No major heuristic violations detected</h4>
+                  <p className="text-sm text-gray-600">The interface generally follows usability principles.</p>
+                </div>
               </div>
             )}
           </div>
         </div>
 
-        {/* Recommended Fixes Section */}
-        <div className="my-10">
-          <h2 className="flex items-center text-xl font-semibold mb-6" style={{color: '#19213d'}}>
-            <span className="w-6 h-6 bg-yellow-300 rounded-md flex items-center justify-center mr-3">
-              🔧
-            </span>
-            Recommended Fixes
-          </h2>
-          <div className="space-y-3">
-            {getRecommendedFixes().map((fix, index) => (
-              <div key={fix.id} className="flex items-start p-4 rounded-lg" style={{background: '#f1f3f7'}}>
-                <div className="w-5 h-5 bg-green-400 rounded-full mr-3 mt-1 flex-shrink-0 flex items-center justify-center">
-                  <span className="text-white text-xs font-bold">{index + 1}</span>
+        {/* Recommended Fixes Section - left aligned */}
+        <div className="py-8 md:py-10 max-w-[1140px] mx-auto px-4 md:px-6 -mx-6">
+          <div>
+            <div className="text-left">
+              <h2 className="text-[28px] md:text-[34px] font-semibold tracking-[-0.01em]">Recommended Fixes</h2>
+              <p className="font-medium text-gray-800 mt-2">Quick wins and structural improvements.</p>
+            </div>
+            <div className="space-y-2 mt-6">
+              {getRecommendedFixes().map((fix, index) => (
+                <div key={fix.id} className="flex gap-3 items-start p-3 rounded-xl hover:bg-neutral-50 transition">
+                  <div className="h-6 w-6 rounded-full bg-yellow-400 grid place-items-center mt-0.5">
+                    <span className="text-[14px] font-semibold">✓</span>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold">{fix.title}</h4>
+                    <p className="text-sm text-gray-600">{fix.recommendation}</p>
+                    {(fix.severity || fix.category) && (
+                      <div className="flex gap-2 mt-2">
+                        {fix.severity && (
+                          <span className={`text-xs px-2 py-1 rounded ${
+                            fix.severity === 'critical' ? 'bg-red-100 text-red-700' :
+                            fix.severity === 'major' ? 'bg-orange-100 text-orange-700' : 
+                            'bg-yellow-100 text-yellow-700'
+                          }`}>
+                            {fix.severity === 'critical' ? 'Critical' : 
+                             fix.severity === 'major' ? 'High Priority' : 'Medium Priority'}
+                          </span>
+                        )}
+                        {fix.category && (
+                          <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded">
+                            {fix.category}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div>
-                  <div className="text-sm font-medium leading-relaxed text-black mb-1">
-                    {fix.title}
-                  </div>
-                  <div className="text-sm leading-relaxed" style={{color: '#6d758f'}}>
-                    {fix.recommendation}
-                  </div>
-                  <div className="flex gap-2 mt-2">
-                    <span className={`text-xs px-2 py-1 rounded ${
-                      fix.severity === 'major' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
-                    }`}>
-                      {fix.severity === 'major' ? 'High Priority' : 'Medium Priority'}
-                    </span>
-                    <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded">
-                      {fix.category}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
 
-        {/* Work Samples Section */}
-        <div className="my-10">
-          <h2 className="flex items-center text-xl font-semibold mb-6" style={{color: '#19213d'}}>
-            <span className="w-6 h-6 bg-yellow-300 rounded-md flex items-center justify-center mr-3">
-              📁
-            </span>
+        {/* Work Samples Section - left aligned */}
+        <div className="py-8 md:py-10 max-w-[1140px] mx-auto px-4 md:px-6 -mx-6">
+          <h2 className="text-[28px] md:text-[34px] font-semibold tracking-[-0.01em] mb-6" style={{color: '#19213d'}}>
             Relevant Case Studies
           </h2>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-6">
             {getRelevantCaseStudiesForAudit().map((caseStudy, index) => (
               <a
                 key={caseStudy.id}
                 href={caseStudy.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block rounded-lg h-36 p-6 transition-all duration-200 hover:shadow-md cursor-pointer group"
-                style={{ background: '#f1f3f7' }}
+                className="group block rounded-xl border border-gray-200 bg-white p-6 transition-all duration-200 hover:border-gray-300 hover:shadow-sm cursor-pointer"
               >
                 <div className="h-full flex flex-col justify-between">
                   <div>
-                    <h4 className="text-base font-semibold mb-2 group-hover:text-yellow-600 transition-colors" style={{color: '#19213d'}}>
+                    <h4 className="text-lg font-semibold mb-3 text-gray-900 group-hover:text-gray-700 transition-colors">
                       {caseStudy.title}
                     </h4>
-                    <p className="text-sm leading-relaxed line-clamp-3" style={{color: '#6d758f'}}>
+                    <p className="text-sm text-gray-600 leading-relaxed mb-4">
                       {caseStudy.description}
                     </p>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full">
+                    <span className="text-xs px-3 py-1 bg-gray-100 text-gray-700 rounded-full font-medium">
                       {caseStudy.industry.charAt(0).toUpperCase() + caseStudy.industry.slice(1)}
                     </span>
-                    <span className="text-xs text-yellow-600 group-hover:text-yellow-700 font-medium">
+                    <span className="text-sm text-blue-600 group-hover:text-blue-700 font-medium transition-colors">
                       View Case Study →
                     </span>
                   </div>
@@ -445,7 +690,22 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
           </div>
         </div>
 
+        {/* Back to Top Button */}
+        <div className="flex justify-center mt-12 mb-8">
+          <button
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            className="flex items-center gap-2 px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-gray-900 rounded-full font-medium transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 8L7 13L8.4 14.4L11 11.8V20H13V11.8L15.6 14.4L17 13L12 8Z" fill="currentColor"/>
+              <path d="M5 4V2H19V4H5Z" fill="currentColor"/>
+            </svg>
+            Back to Top
+          </button>
+        </div>
+
         </div> {/* End PDF Content Wrapper */}
+        </div>
       </div>
     </div>
   );

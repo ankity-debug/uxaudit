@@ -12,9 +12,13 @@ const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://your-domain.com'] 
-    : ['http://localhost:3000'],
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true);
+    const devAllowed = ['http://localhost:3000', 'http://127.0.0.1:3000'];
+    if (process.env.NODE_ENV !== 'production' && devAllowed.includes(origin)) return cb(null, true);
+    // Add production origins here if needed
+    return cb(null, true);
+  },
   credentials: true
 }));
 

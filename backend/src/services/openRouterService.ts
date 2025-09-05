@@ -1,187 +1,230 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import axios from 'axios';
 import { AuditData, AuditIssue, GeminiAnalysisPrompt } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 
-export class GeminiService {
-  private genAI: GoogleGenerativeAI;
+export class OpenRouterService {
+  private apiKey: string;
+  private baseURL = 'https://openrouter.ai/api/v1/chat/completions';
 
   constructor(apiKey: string) {
-    this.genAI = new GoogleGenerativeAI(apiKey);
+    this.apiKey = apiKey;
   }
 
   async analyzeUX(prompt: GeminiAnalysisPrompt): Promise<AuditData> {
-    // Try with lighter model first (gemini-1.5-flash has higher limits)
-    const models = ['gemini-1.5-flash', 'gemini-1.5-pro'];
+    // Try multiple models in order of preference (free to premium)
+    const models = [
+      'meta-llama/llama-3.2-3b-instruct:free',
+      'google/gemma-3-27b-it:free'
+    ];
     
     for (let i = 0; i < models.length; i++) {
       try {
-        const model = this.genAI.getGenerativeModel({
-          model: models[i],
-          generationConfig: {
-            responseMimeType: 'application/json',
-            temperature: 0.1,
-            topP: 0.8,
-            topK: 40,
-            maxOutputTokens: 4096,
-          }
-        });
-
         const analysisPrompt = this.buildAnalysisPrompt(prompt);
-        
-        const result = await model.generateContent([
+
+        const makeMessages = (withImage: boolean) => ([
           {
-            text: analysisPrompt
-          },
-          ...(prompt.imageBase64 ? [{
-            inlineData: {
-              mimeType: 'image/jpeg',
-              data: prompt.imageBase64
-            }
-          }] : [])
+            role: 'user',
+            content: withImage && prompt.imageBase64 ? [
+              { type: 'text', text: analysisPrompt },
+              { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${prompt.imageBase64}` } }
+            ] : analysisPrompt
+          } as any
         ]);
 
-        const response = await result.response;
-        const analysisText = response.text();
+        const doRequest = async (withImage: boolean) => {
+          return axios.post(this.baseURL, {
+            model: models[i],
+            messages: makeMessages(withImage),
+            temperature: 0.1,
+            max_tokens: 4096,
+            response_format: { type: 'json_object' }
+          }, {
+            headers: {
+              'Authorization': `Bearer ${this.apiKey}`,
+              'Content-Type': 'application/json',
+              'HTTP-Referer': 'https://lemonyellow.design',
+              'X-Title': 'LimeMind UX Audit Tool'
+            },
+            timeout: 90000
+          });
+        };
 
-        return this.parseGeminiResponse(JSON.parse(analysisText), prompt);
-        
+        let response;
+        try {
+          response = await doRequest(true);
+        } catch (e: any) {
+          // If model rejects images, retry text-only once for this model
+          const status = e?.response?.status;
+          const msg = e?.response?.data?.error?.message || e?.message || '';
+          const imageUnsupported = /image input|image not supported|no endpoints.*image/i.test(msg);
+          if (prompt.imageBase64 && (status === 400 || status === 404 || status === 415 || imageUnsupported)) {
+            response = await doRequest(false);
+          } else {
+            throw e;
+          }
+        }
+
+        // Provider-level error sometimes arrives in body with 200
+        if (response?.data?.error) {
+          const code = response.data.error.code || 500;
+          // Force catch path with a faux axios-like error shape
+          throw { response: { status: code, data: response.data } };
+        }
+
+        const analysisText = response.data.choices?.[0]?.message?.content || response.data.choices?.[0]?.message;
+        return this.parseOpenRouterResponse(JSON.parse(analysisText), prompt, models[i]);
+
       } catch (error: any) {
-        console.error(`Gemini API error with ${models[i]}:`, error);
-        
-        // If it's a rate limit error and we have more models to try
-        if (error.status === 429 && i < models.length - 1) {
-          console.log(`Rate limited on ${models[i]}, trying ${models[i + 1]}...`);
+        const status = error?.response?.status || error?.response?.data?.error?.code;
+        console.error(`OpenRouter API error with ${models[i]}:`, error.response?.data || error.message);
+        if ((status === 429 || status === 402) && i < models.length - 1) {
+          console.log(`Rate limited or insufficient credits on ${models[i]}, trying ${models[i + 1]}...`);
           continue;
         }
-        
-        // If it's the last model or other error, return demo response
-        console.log('All models failed or other error, returning demo response');
-        return this.createDemoResponse(prompt);
+        // Bubble up the last error to caller (no demo fallback)
+        let reason: any = error.response?.data?.error || error.message || 'Unknown analysis error';
+        if (typeof reason === 'object') reason = reason.message || JSON.stringify(reason);
+        throw new Error(`AI analysis failed: ${reason}`);
       }
     }
-    
-    // Fallback (shouldn't reach here)
-    return this.createDemoResponse(prompt);
+    throw new Error('AI analysis failed: all model attempts exhausted');
   }
 
   private buildAnalysisPrompt(prompt: GeminiAnalysisPrompt): string {
-    let basePrompt = `
-You are a senior UX auditor analyzing a ${prompt.analysisType === 'screenshot' ? 'screenshot' : 'website'}. 
-Provide a comprehensive UX audit based on the following criteria:
-`;
+    const isUrl = prompt.analysisType === 'url' && !!prompt.url;
+    const subject = isUrl ? `the website at \`${prompt.url}\`` : 'the provided design/screenshot';
 
-    if (prompt.targetAudience || prompt.userGoals || prompt.businessObjectives) {
-      basePrompt += '\n## CONTEXT:\n';
-      if (prompt.targetAudience) {
-        basePrompt += `\n- **Target Audience:** ${prompt.targetAudience}`;
-      }
-      if (prompt.userGoals) {
-        basePrompt += `\n- **User Goals:** ${prompt.userGoals}`;
-      }
-      if (prompt.businessObjectives) {
-        basePrompt += `\n- **Business Objectives:** ${prompt.businessObjectives}`;
-      }
-    }
+    let basePrompt = `## ROLE & GOAL
+You are a senior UX consultant from Lemon Yellow, renowned for delivering contextual, business-focused UX audits that go beyond generic templates. Your reputation depends on providing unique insights that directly connect UX friction to business impact.
 
-    basePrompt += `
+You are analyzing ${subject} to deliver a comprehensive UX audit following Lemon Yellow's signature audit flow. Every output must be specific, contextual, and demonstrate deep understanding of this particular experience.
 
-## ANALYSIS FRAMEWORK:
+## AUDIT FLOW REQUIREMENTS
 
-### 1. NIELSEN'S HEURISTICS (40% weight)
-Evaluate against these 10 principles:
-- Visibility of system status
-- Match between system and real world
-- User control and freedom
-- Consistency and standards
-- Error prevention
-- Recognition rather than recall
-- Flexibility and efficiency of use
-- Aesthetic and minimalist design
-- Help users recognize, diagnose, and recover from errors
-- Help and documentation
+### 1. Executive Summary
+- 1-2 sentences, business-facing language
+- High-level UX state (excellent/good/fair/poor/broken) tied to the site's primary business goal
+- Must be specific to THIS site's actual purpose and context
 
-### 2. UX LAWS (30% weight)
-Assess compliance with:
-- Fitts's Law (button sizes, click targets)
-- Hick's Law (choice complexity, decision time)
-- Miller's Rule (cognitive load, 7±2 items)
-- Law of Proximity (visual grouping)
-- Law of Common Region (spatial relationships)
+### 2. Key Insights (Holistic Patterns)  
+- 2-3 "aha" insights that only emerge from analyzing the WHOLE experience
+- Focus on patterns that span multiple touchpoints
+- Example format: "Strong product visuals are undermined by inconsistent CTA copy across flows, creating doubt during checkout"
 
-### 3. COPYWRITING (20% weight)
-Evaluate:
-- Clarity and conciseness
-- Call-to-action effectiveness
-- Tone consistency
-- Information hierarchy
-- Microcopy quality
+### 3. Persona-Driven User Journey
+- Define ONE realistic persona specific to this site (not generic)
+- Walk through actual navigation path step-by-step
+- Each step format: action → issue(s) → improvement(s)
+- Must reflect real user friction for THIS specific experience
 
-### 4. ACCESSIBILITY (10% weight)
-Check for:
-- Color contrast compliance (WCAG AA)
-- Text readability
-- Button/link visibility
-- Visual hierarchy
-- Basic structural elements
+### 4. Heuristic Violations (Nielsen's 10)
+- Explicit mapping to specific heuristics
+- Format: "Heuristic Name → Specific element → Why it matters HERE"
+- Example: "Visibility of system status → Cart page shows no loading indicator, leaving users confused during checkout"
 
-## OUTPUT FORMAT:
-Respond with a JSON object in this exact structure:
+### 5. Recommended Fixes (Prioritized)
+- 3-5 clear recommendations 
+- Each includes: priority (high/med/low) + business impact
+- Tied directly to issues found in THIS analysis
+
+## ANTI-TEMPLATE DIRECTIVE
+CRITICAL: Avoid all generic language. Your analysis must be demonstrably different from any other site audit by:
+- Quoting actual text from the site
+- Naming specific UI elements (buttons, colors, layouts)
+- Referencing actual navigation paths you tested
+- Identifying site-specific business goals and user needs
+
+## ANALYSIS APPROACH
+1. Identify the site's PRIMARY business goal and user intent
+2. Define a realistic persona based on the actual content/industry
+3. Navigate through key user flows (2-3 pages deep minimum)
+4. Document specific friction points with concrete evidence
+5. Map findings to Nielsen's heuristics with site-specific examples
+6. Prioritize fixes based on business impact for THIS specific context
+
+## EVIDENCE REQUIREMENTS
+Every issue must include:
+- Specific element/page where problem occurs
+- Actual text or visual elements as proof
+- Clear explanation of why it matters for THIS site's goals
+- Concrete recommendation that fits this context
+
+${(prompt.targetAudience || prompt.userGoals || prompt.businessObjectives) ? '## CONTEXT' : ''}
+${prompt.targetAudience ? `- Target Audience: ${prompt.targetAudience}` : ''}
+${prompt.userGoals ? `- User Goals: ${prompt.userGoals}` : ''}
+${prompt.businessObjectives ? `- Business Objectives: ${prompt.businessObjectives}` : ''}
+
+## OUTPUT FORMAT (strict JSON schema)
+Respond ONLY with a JSON object matching this new Lemon Yellow audit structure:
 
 {
-  "summary": "Brief 1-2 sentence overall assessment",
-  "confidence": 0.85,
-  "insights": ["Key insight about user experience", "Important finding about usability"],
-  "scores": {
-    "heuristics": { "score": X, "maxScore": 40, "findings": "Brief summary" },
-    "uxLaws": { "score": X, "maxScore": 30, "findings": "Brief summary" },
-    "copywriting": { "score": X, "maxScore": 20, "findings": "Brief summary" },
-    "accessibility": { "score": X, "maxScore": 10, "findings": "Brief summary" }
+  "executiveSummary": "1-2 sentences, business-facing. High-level UX state tied to this site's primary business goal.",
+  "confidence": 0.0,
+  "keyInsights": [
+    "Holistic insight 1 that spans multiple touchpoints",
+    "Holistic insight 2 that emerges from whole experience analysis",
+    "Holistic insight 3 connecting patterns to business impact"
+  ],
+  "personaDrivenJourney": {
+    "persona": "Specific persona relevant to THIS site (e.g., 'Marketing manager comparing SaaS tools')",
+    "personaReasoning": "Why this persona perfectly fits this specific site and industry",
+    "steps": [
+      {
+        "action": "Specific action taken on this site",
+        "issues": ["Specific friction point at this step"],
+        "improvements": ["Specific fix for this step"]
+      }
+    ],
+    "overallExperience": "excellent|good|fair|poor|broken"
   },
-  "issues": [
+  "heuristicViolations": [
     {
-      "id": "unique-id",
-      "title": "Issue Title",
-      "description": "Detailed description of the issue",
-      "severity": "major|minor",
-      "category": "heuristics|ux-laws|copywriting|accessibility",
-      "heuristic": "Specific heuristic/law violated (if applicable)",
-      "recommendation": "Specific actionable recommendation",
-      "element": "Specific element or area affected",
-      "evidence": [{"type": "screenshot", "reference": "general-observation", "description": "What this evidence shows"}],
-      "impact": "high|medium|low",
-      "effort": "high|medium|low"
+      "heuristic": "Specific Nielsen heuristic name",
+      "element": "Exact UI element or page section",
+      "violation": "What's wrong and why it matters for THIS site",
+      "businessImpact": "How this affects conversions/engagement for this business",
+      "evidence": "Quote actual text or describe specific visual element"
     }
   ],
-  "recommendations": [
-    "Priority 1 recommendation",
-    "Priority 2 recommendation"
-  ],
-  "userJourneys": [
+  "prioritizedFixes": [
     {
-      "persona": "Primary user type",
-      "steps": [{"action": "User action", "issues": ["Problems"], "improvements": ["Suggested fixes"]}],
-      "overallExperience": "excellent|good|fair|poor|broken"
+      "recommendation": "Clear, actionable fix",
+      "priority": "high|medium|low",
+      "businessImpact": "Expected improvement in conversions/engagement/retention",
+      "effort": "high|medium|low",
+      "timeframe": "immediate|short-term|long-term"
     }
-  ]
+  ],
+  "scores": {
+    "heuristics": { "score": 0.0, "maxScore": 5.0, "findings": "Site-specific heuristic assessment" },
+    "uxLaws": { "score": 0.0, "maxScore": 5.0, "findings": "Site-specific UX laws assessment" },
+    "copywriting": { "score": 0.0, "maxScore": 5.0, "findings": "Site-specific copywriting assessment" },
+    "accessibility": { "score": 0.0, "maxScore": 5.0, "findings": "Site-specific accessibility assessment" }
+  },
+  "analysisLog": {
+    "siteBusinessGoal": "Primary business objective identified for this site",
+    "navigationPath": ["/", "/actual-page", "/tested-flow"],
+    "keyObservations": ["Site-specific observation 1", "Site-specific observation 2"],
+    "testingApproach": "What flows and pages were analyzed"
+  }
 }
 
-## SCORING GUIDELINES:
-- Major issues: -3 to -5 points per category
-- Minor issues: -1 to -2 points per category
-- Perfect implementation: Full points for category
-- Severity classification: Major = blocks user goals, Minor = reduces experience quality
+Strict requirements:
+- Output must be valid JSON only (no markdown, no prose outside JSON)
+- Keep all strings concise and specific to ${isUrl ? `\`${prompt.url}\`` : 'this image'}
+- Do not invent pages you did not observe; if limited, be transparent in analysisLog
+`;
 
-Be thorough but concise. Focus on actionable insights that non-designers can understand and implement.
-    `;
-
-    if (prompt.url) {
-      return basePrompt + `\n\nAnalyze the website: ${prompt.url}`;
+    if (isUrl) {
+      basePrompt += `\n\nAnalyze the website now: ${prompt.url}`;
+    } else {
+      basePrompt += `\n\nAnalyze the provided screenshot/image for UX issues and opportunities.`;
     }
 
-    return basePrompt + '\n\nAnalyze the provided screenshot/image for UX issues and opportunities.';
+    return basePrompt;
   }
 
-  private parseGeminiResponse(parsedResponse: any, prompt: GeminiAnalysisPrompt): AuditData {
+  private parseOpenRouterResponse(parsedResponse: any, prompt: GeminiAnalysisPrompt, modelUsed: string): AuditData {
     try {
       // Calculate overall scores and percentages
       const scores = parsedResponse.scores;
@@ -242,24 +285,28 @@ Be thorough but concise. Focus on actionable insights that non-designers can und
           maturityScorecard
         },
         issues,
-        summary: parsedResponse.summary || 'UX analysis completed',
-        recommendations: parsedResponse.recommendations || [],
-        insights: parsedResponse.insights || [],
-        userJourneys: parsedResponse.userJourneys || [],
+        summary: parsedResponse.executiveSummary || 'UX analysis completed',
+        recommendations: parsedResponse.prioritizedFixes?.map((fix: any) => fix.recommendation) || [],
+        insights: parsedResponse.keyInsights || [],
+        userJourneys: parsedResponse.personaDrivenJourney ? [parsedResponse.personaDrivenJourney] : [],
+        heuristicViolations: parsedResponse.heuristicViolations || [],
+        prioritizedFixes: parsedResponse.prioritizedFixes || [],
+        executiveSummary: parsedResponse.executiveSummary || '',
+        keyInsights: parsedResponse.keyInsights || [],
+        personaDrivenJourney: parsedResponse.personaDrivenJourney || null,
         evidenceFiles: this.extractEvidenceFiles(issues),
         analysisMetadata: {
-          model: 'gemini-1.5-flash',
+          model: modelUsed,
           processingTime: Date.now(),
           pagesAnalyzed: prompt.url ? [prompt.url] : ['screenshot-analysis'],
-          confidenceScore: parsedResponse.confidence || 0.8
+          confidenceScore: parsedResponse.confidence || 0.8,
+          siteBusinessGoal: parsedResponse.analysisLog?.siteBusinessGoal || '',
+          navigationPath: parsedResponse.analysisLog?.navigationPath || []
         }
       };
     } catch (error) {
-      console.error('Error parsing Gemini response:', error);
-      console.log('Raw response:', parsedResponse);
-      
-      // Fallback response
-      return this.createFallbackResponse(prompt);
+      console.error('Error parsing AI response:', error);
+      throw new Error('AI response parsing failed');
     }
   }
 
@@ -358,29 +405,29 @@ Be thorough but concise. Focus on actionable insights that non-designers can und
 
     const scores = {
       heuristics: { 
-        score: 25, 
-        maxScore: 40, 
+        score: 3.1, 
+        maxScore: 5.0, 
         percentage: 62.5,
         issues: heuristicsIssues,
         insights: 'Navigation consistency needs improvement'
       },
       uxLaws: { 
-        score: 18, 
-        maxScore: 30, 
+        score: 3.0, 
+        maxScore: 5.0, 
         percentage: 60,
         issues: uxLawsIssues,
         insights: 'Click targets and information density issues identified'
       },
       copywriting: { 
-        score: 16, 
-        maxScore: 20, 
+        score: 4.0, 
+        maxScore: 5.0, 
         percentage: 80,
         issues: copywritingIssues,
         insights: 'Generally good content with minor CTA improvements needed'
       },
       accessibility: { 
-        score: 5, 
-        maxScore: 10, 
+        score: 2.5, 
+        maxScore: 5.0, 
         percentage: 50,
         issues: accessibilityIssues,
         insights: 'Color contrast compliance needs attention'

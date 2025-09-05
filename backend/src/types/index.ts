@@ -58,6 +58,33 @@ export interface UserJourney {
   overallExperience: 'excellent' | 'good' | 'fair' | 'poor' | 'broken';
 }
 
+export interface PersonaDrivenJourney {
+  persona: string;
+  personaReasoning: string;
+  steps: {
+    action: string;
+    issues: string[];
+    improvements: string[];
+  }[];
+  overallExperience: 'excellent' | 'good' | 'fair' | 'poor' | 'broken';
+}
+
+export interface HeuristicViolation {
+  heuristic: string;
+  element: string;
+  violation: string;
+  businessImpact: string;
+  evidence: string;
+}
+
+export interface PrioritizedFix {
+  recommendation: string;
+  priority: 'high' | 'medium' | 'low';
+  businessImpact: string;
+  effort: 'high' | 'medium' | 'low';
+  timeframe: 'immediate' | 'short-term' | 'long-term';
+}
+
 export interface AuditScores {
   overall: {
     score: number;
@@ -84,12 +111,20 @@ export interface AuditData {
   recommendations: string[];
   insights: string[]; // Key insights that emerged from analysis
   userJourneys: UserJourney[];
+  // New Lemon Yellow audit structure
+  executiveSummary?: string;
+  keyInsights?: string[];
+  personaDrivenJourney?: PersonaDrivenJourney | null;
+  heuristicViolations?: HeuristicViolation[];
+  prioritizedFixes?: PrioritizedFix[];
   evidenceFiles: string[]; // List of screenshot/evidence files
   analysisMetadata: {
     model: string;
     processingTime: number;
     pagesAnalyzed: string[];
     confidenceScore: number;
+    siteBusinessGoal?: string;
+    navigationPath?: string[];
   };
 }
 

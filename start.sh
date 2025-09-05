@@ -39,11 +39,12 @@ if [ ! -f "backend/.env" ]; then
     echo "⚠️  Warning: backend/.env file not found"
     echo "Creating default .env file..."
     cat > backend/.env << EOF
-GEMINI_API_KEY=AIzaSyCv662IWsKFtys9izsueAEtGr5w0mMiiFI
+OPENROUTER_API_KEY=
 PORT=3001
 UPLOAD_DIR=./uploads
 NODE_ENV=development
 EOF
+    echo "➡️  Please edit backend/.env and set OPENROUTER_API_KEY before running real audits."
 fi
 
 echo ""

@@ -2,9 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuditForm } from './components/AuditForm';
 import { AuditReport } from './components/AuditReport';
-import { DeepDiveReport } from './components/DeepDiveReport';
 import { AuditData } from './types';
-import { mockAuditData } from './mockData';
+import { Toaster, toast } from 'sonner';
 
 function AppContent() {
   const [auditData, setAuditData] = useState<AuditData | null>(null);
@@ -12,29 +11,19 @@ function AppContent() {
 
   // Load audit data from sessionStorage on component mount
   useEffect(() => {
-    // Check for stored audit data with either key
-    const mainData = sessionStorage.getItem('mainAuditData');
-    const deepDiveData = sessionStorage.getItem('deepDiveAuditData');
-    
-    console.log('Checking sessionStorage for audit data:');
-    console.log('mainData:', mainData ? 'found' : 'not found');
-    console.log('deepDiveData:', deepDiveData ? 'found' : 'not found');
-    
-    const storedData = mainData || deepDiveData;
+    const storedData = sessionStorage.getItem('mainAuditData');
     if (storedData) {
       try {
         const parsedData = JSON.parse(storedData);
-        console.log('Loading audit data from sessionStorage:', parsedData.url || 'image data');
         setAuditData(parsedData);
       } catch (error) {
         console.error('Error parsing stored audit data:', error);
       }
-    } else {
-      console.log('No stored audit data found');
     }
   }, []);
 
   const handleAuditSubmit = async (input: { type: 'url' | 'image'; value: string | File }) => {
+    toast.dismiss();
     setIsLoading(true);
     try {
       const formData = new FormData();
@@ -56,17 +45,24 @@ function AppContent() {
       });
 
       if (!response.ok) {
-        throw new Error('Audit failed');
+        let reason = 'Unknown error';
+        try {
+          const err = await response.json();
+          reason = err.message || err.error || JSON.stringify(err);
+        } catch {
+          try { reason = await response.text(); } catch {}
+        }
+        toast.error(`Audit failed: ${reason}`);
+        return;
       }
 
       const data = await response.json();
       setAuditData(data);
-      // Store audit data in sessionStorage for consistent navigation
       sessionStorage.setItem('mainAuditData', JSON.stringify(data));
-      sessionStorage.setItem('deepDiveAuditData', JSON.stringify(data));
     } catch (error) {
       console.error('Audit error:', error);
-      alert('Audit failed. Please try again.');
+      const reason = (error as Error).message || 'Request failed';
+      toast.error(`Audit failed: ${reason}`);
     } finally {
       setIsLoading(false);
     }
@@ -74,6 +70,7 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <Toaster richColors />
       <Routes>
         <Route 
           path="/" 
@@ -85,98 +82,9 @@ function AppContent() {
             )
           } 
         />
-        <Route 
-          path="/report" 
-          element={<ReportPage />} 
-        />
-        <Route 
-          path="/deep-dive" 
-          element={<DeepDivePage />} 
-        />
       </Routes>
     </div>
   );
-}
-
-function ReportPage() {
-  const [reportData, setReportData] = useState<AuditData | null>(null);
-
-  useEffect(() => {
-    // Load audit data from sessionStorage
-    const mainData = sessionStorage.getItem('mainAuditData');
-    const deepDiveData = sessionStorage.getItem('deepDiveAuditData');
-    
-    const storedData = mainData || deepDiveData;
-    if (storedData) {
-      try {
-        const parsedData = JSON.parse(storedData);
-        setReportData(parsedData);
-      } catch (error) {
-        console.error('Error parsing stored audit data:', error);
-        // Fallback to mock data
-        setReportData(mockAuditData);
-      }
-    } else {
-      // If no stored data, use mock data
-      setReportData(mockAuditData);
-    }
-  }, []);
-
-  if (!reportData) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Loading report...</h2>
-        </div>
-      </div>
-    );
-  }
-
-  return <AuditReport data={reportData} />;
-}
-
-function DeepDivePage() {
-  const [deepDiveData, setDeepDiveData] = useState<AuditData | null>(null);
-
-  useEffect(() => {
-    // Try to load audit data from sessionStorage
-    const storedData = sessionStorage.getItem('deepDiveAuditData');
-    if (storedData) {
-      try {
-        const parsedData = JSON.parse(storedData);
-        setDeepDiveData(parsedData);
-      } catch (error) {
-        console.error('Error parsing stored audit data:', error);
-        // Fallback to mock data for development
-        setDeepDiveData(mockAuditData);
-      }
-    } else {
-      // If no stored data, use mock data for development/testing
-      setDeepDiveData(mockAuditData);
-      // Store mock data so other components can access it
-      sessionStorage.setItem('deepDiveAuditData', JSON.stringify(mockAuditData));
-      sessionStorage.setItem('mainAuditData', JSON.stringify(mockAuditData));
-    }
-  }, []);
-
-  if (!deepDiveData) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">No audit data available</h2>
-          <p className="text-gray-600 mb-4">Please perform an audit first.</p>
-          <button 
-            onClick={() => window.location.href = '/'}
-            className="px-6 py-3 bg-yellow-400 text-gray-900 rounded-xl font-medium hover:bg-yellow-500 transition-colors"
-          >
-            Start New Audit
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return <DeepDiveReport data={deepDiveData} />;
 }
 
 function App() {
@@ -188,3 +96,4 @@ function App() {
 }
 
 export default App;
+
