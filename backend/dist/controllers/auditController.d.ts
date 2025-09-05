@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 export declare class AuditController {
-    private geminiService;
+    private openRouterService;
     private screenshotService;
     constructor();
     auditWebsite: (req: Request, res: Response) => Promise<void>;

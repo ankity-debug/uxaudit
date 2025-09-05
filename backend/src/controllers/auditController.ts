@@ -1,19 +1,19 @@
 import { Request, Response } from 'express';
-import { GeminiService } from '../services/geminiService';
+import { OpenRouterService } from '../services/openRouterService';
 import { ScreenshotService } from '../services/screenshotService';
 import { AuditData } from '../types';
 
 export class AuditController {
-  private geminiService: GeminiService;
+  private openRouterService: OpenRouterService;
   private screenshotService: ScreenshotService;
 
   constructor() {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
-      throw new Error('GEMINI_API_KEY environment variable is required');
+      throw new Error('OPENROUTER_API_KEY environment variable is required');
     }
     
-    this.geminiService = new GeminiService(apiKey);
+    this.openRouterService = new OpenRouterService(apiKey);
     this.screenshotService = new ScreenshotService();
   }
 
@@ -80,12 +80,12 @@ export class AuditController {
         }
       }
 
-      // Perform UX analysis with Gemini
+      // Perform UX analysis with OpenRouter
       try {
-        const auditResult: AuditData = await this.geminiService.analyzeUX({
+        const auditResult: AuditData = await this.openRouterService.analyzeUX({
           imageBase64,
           url: auditUrl,
-          analysisType: type === 'url' ? 'screenshot' : 'screenshot',
+          analysisType: type === 'url' ? 'url' : 'image',
           targetAudience,
           userGoals,
           businessObjectives
@@ -97,10 +97,12 @@ export class AuditController {
         }
 
         res.json(auditResult);
-      } catch (analysisError) {
+      } catch (analysisError: any) {
         console.error('Analysis error:', analysisError);
+        const reason = analysisError?.message || 'Failed to complete UX analysis';
         res.status(500).json({ 
-          error: 'Failed to complete UX analysis. Please try again.' 
+          error: 'Audit failed',
+          message: reason
         });
       }
 

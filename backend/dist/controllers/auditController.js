@@ -1,13 +1,13 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AuditController = void 0;
-const geminiService_1 = require("../services/geminiService");
+const openRouterService_1 = require("../services/openRouterService");
 const screenshotService_1 = require("../services/screenshotService");
 class AuditController {
     constructor() {
         this.auditWebsite = async (req, res) => {
             try {
-                const { type, url } = req.body;
+                const { type, url, targetAudience, userGoals, businessObjectives } = req.body;
                 const file = req.file;
                 if (!type || (type !== 'url' && type !== 'image')) {
                     res.status(400).json({ error: 'Invalid audit type. Must be "url" or "image"' });
@@ -35,11 +35,9 @@ class AuditController {
                         imageBase64 = this.screenshotService.bufferToBase64(screenshotBuffer);
                     }
                     catch (screenshotError) {
-                        console.error('Screenshot error:', screenshotError);
-                        res.status(500).json({
-                            error: 'Failed to capture website screenshot. Please ensure the URL is accessible.'
-                        });
-                        return;
+                        console.error('Screenshot error (continuing without screenshot):', screenshotError);
+                        // Gracefully proceed without screenshot if capture fails
+                        imageBase64 = undefined;
                     }
                 }
                 else if (type === 'image') {
@@ -63,19 +61,28 @@ class AuditController {
                         return;
                     }
                 }
-                // Perform UX analysis with Gemini
+                // Perform UX analysis with OpenRouter
                 try {
-                    const auditResult = await this.geminiService.analyzeUX({
+                    const auditResult = await this.openRouterService.analyzeUX({
                         imageBase64,
                         url: auditUrl,
-                        analysisType: type === 'url' ? 'screenshot' : 'screenshot'
+                        analysisType: type === 'url' ? 'url' : 'image',
+                        targetAudience,
+                        userGoals,
+                        businessObjectives
                     });
+                    // Add screenshot data to the response
+                    if (imageBase64) {
+                        auditResult.imageUrl = `data:image/jpeg;base64,${imageBase64}`;
+                    }
                     res.json(auditResult);
                 }
                 catch (analysisError) {
                     console.error('Analysis error:', analysisError);
+                    const reason = (analysisError?.message) || 'Failed to complete UX analysis';
                     res.status(500).json({
-                        error: 'Failed to complete UX analysis. Please try again.'
+                        error: 'Audit failed',
+                        message: reason
                     });
                 }
             }
@@ -93,11 +100,8 @@ class AuditController {
                 timestamp: new Date().toISOString()
             });
         };
-        const apiKey = process.env.GEMINI_API_KEY;
-        if (!apiKey) {
-            throw new Error('GEMINI_API_KEY environment variable is required');
-        }
-        this.geminiService = new geminiService_1.GeminiService(apiKey);
+        const apiKey = process.env.OPENROUTER_API_KEY || 'demo';
+        this.openRouterService = new openRouterService_1.OpenRouterService(apiKey);
         this.screenshotService = new screenshotService_1.ScreenshotService();
     }
 }

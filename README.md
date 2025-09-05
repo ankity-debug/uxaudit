@@ -1,247 +1,141 @@
-# UX Audit Platform
+# UXAudit — AI‑Powered UX Audit Platform
 
-AI-powered UX audit platform using Gemini AI to analyze websites and screenshots for usability issues based on Nielsen's heuristics, UX laws, copywriting quality, and accessibility standards.
+Audit any public URL or a screenshot and get an actionable UX report: executive summary, category scores, persona‑driven journey, heuristic violations (with chips), prioritized fixes, and PDF export. Frontend is React (CRA + Tailwind). Backend is Express + TypeScript with Puppeteer capture and OpenRouter analysis.
 
-## 🚀 Features
+## Highlights
 
-- **URL Analysis**: Automatically capture and analyze any public website
-- **Image Upload**: Upload screenshots for detailed UX analysis  
-- **AI-Powered Insights**: Gemini AI provides comprehensive UX evaluation
-- **Professional Reports**: Generate branded PDF reports with actionable recommendations
-- **Multiple Assessment Categories**:
-  - Nielsen's 10 Usability Heuristics (40% weight)
-  - UX Laws: Fitts's, Hick's, Miller's Rules (30% weight)  
-  - Copywriting Quality (20% weight)
-  - Basic Accessibility (10% weight)
-- **Responsive Design**: Works on desktop and mobile devices
-- **No Login Required**: Frictionless audit experience
+- URL and image audits (desktop viewport by default)
+- Smart screenshots via Puppeteer (continues without image if capture fails)
+- OpenRouter analysis with strict JSON parsing and model rotation
+- Clean report UI with PDF export and heuristic chips
+- Case study suggestions tied to context
 
-## 🏗️ Architecture
+## Quick Start
 
-### Frontend (React + TypeScript + Tailwind)
-- **Framework**: React 18 with TypeScript
-- **Styling**: Tailwind CSS for responsive design
-- **Components**: Modular component architecture
-- **File Upload**: Drag-and-drop interface with react-dropzone
-- **PDF Export**: Client-side PDF generation with jsPDF
+Prereqs
+- Node.js 18+
+- npm
+- Chrome/Chromium available to Puppeteer (or configure a system Chrome)
+- OpenRouter API key
 
-### Backend (Node.js + Express + TypeScript)
-- **Framework**: Express.js with TypeScript
-- **AI Integration**: Google Gemini 1.5 Pro for UX analysis
-- **Screenshot Capture**: Puppeteer for automated website screenshots
-- **Image Processing**: Sharp for image optimization
-- **File Handling**: Multer for upload management
-
-## 📋 Prerequisites
-
-- Node.js 18+ and npm
-- Chrome/Chromium (for Puppeteer)
-- Gemini API key from Google AI Studio
-
-## 🛠️ Installation & Setup
-
-1. **Clone and install dependencies**:
-```bash
-cd ux-audit-platform
-npm install
-cd frontend && npm install
-cd ../backend && npm install
-```
-
-2. **Configure environment variables**:
-The Gemini API key is already configured in `backend/.env`:
-```
-GEMINI_API_KEY=AIzaSyCv662IWsKFtys9izsueAEtGr5w0mMiiFI
+Environment
+```env
+# uxaudit/backend/.env
+OPENROUTER_API_KEY=sk-or-...
 PORT=3001
+NODE_ENV=development
 ```
 
-3. **Start the development servers**:
-```bash
-# From the root directory - starts both frontend and backend
-npm run dev
+One‑command start
+- From repo root: `./start.sh`
 
-# Or start individually:
-npm run dev:frontend  # React app on http://localhost:3000
-npm run dev:backend   # API server on http://localhost:3001
-```
+Manual dev
+- `npm install`
+- `cd frontend && npm install`
+- `cd ../backend && npm install`
+- From repo root: `npm run dev` (frontend `http://localhost:3000`, backend `http://localhost:3001`)
 
-## 🎯 Usage
+Production build
+- `npm run build` (frontend then backend)
+- Backend prod start (from `backend/`): `node dist/index.js`
 
-### Web Interface
-1. Open http://localhost:3000
-2. Choose analysis type:
-   - **URL**: Enter any public website URL
-   - **Image**: Upload a screenshot (PNG, JPG, WebP up to 10MB)
-3. Click "Start UX Audit"
-4. Review results and download PDF report
+## Repository Structure
 
-### API Endpoints
+- `frontend/`
+  - `src/App.tsx` — routing + flow; persists `mainAuditData`; shows an error banner on `/report?error=1`
+  - `src/components/AuditForm.tsx` — URL/Image input, drag & drop
+  - `src/components/AuditReport.tsx` — main report view (persona journey; heuristic chips; fixes; PDF)
+  - `src/components/SampleReport.tsx` — separate sample report component (currently not auto‑rendered)
+  - `src/data/caseStudies.ts` — case study matcher
+  - `src/types.ts` — audit types
+- `backend/`
+  - `src/index.ts` — Express + CORS + routes
+  - `src/controllers/auditController.ts` — URL vs image flow; passes analysisType `url`/`image`
+  - `src/services/screenshotService.ts` — Puppeteer capture + Sharp optimization
+  - `src/services/openRouterService.ts` — prompt + OpenRouter request; retries text‑only if images are rejected; rotates models on 429/402; strict JSON parsing
+  - `src/utils/multerConfig.ts` — in‑memory upload config
 
-**POST** `/api/audit`
-- Analyze URL or uploaded image
-- Form data: `type=url&url=https://example.com` OR `type=image` with file upload
+## Running the Apps
 
-**GET** `/api/health`
-- Check service health status
+Helper script
+- `./start.sh` installs deps, ensures `backend/.env`, and starts both apps.
 
-**GET** `/api/status`  
-- Get audit service status
+Manual
+- Frontend: `cd frontend && npm start`
+- Backend: `cd backend && node dist/index.js`
 
-## 📊 Analysis Framework
+## Using the App
 
-### Nielsen's Heuristics (40 points)
-- Visibility of system status
-- Match between system and real world  
-- User control and freedom
-- Consistency and standards
-- Error prevention
-- Recognition rather than recall
-- Flexibility and efficiency of use
-- Aesthetic and minimalist design
-- Help users recognize, diagnose, recover from errors
-- Help and documentation
+Web
+- Open `http://localhost:3000`
+- Choose URL or Image tab, submit, view the report, export PDF
+- On errors you’ll be redirected to `/report?error=1` with a banner showing a clear reason and Retry
 
-### UX Laws (30 points)
-- **Fitts's Law**: Button sizes and click target accessibility
-- **Hick's Law**: Choice complexity and decision time
-- **Miller's Rule**: Cognitive load and information chunking
-- **Law of Proximity**: Visual grouping and spatial relationships
+API
+- `GET /api/health` — service health
+- `GET /api/status` — audit service status
+- `POST /api/audit` — run an audit
+  - For URL: JSON `{ "type":"url", "url":"https://example.com" }`
+  - For image: multipart/form‑data with fields: `type=image`, `image=<file>`
+  - Error example (500): `{ "error": "Audit failed", "message": "<reason>" }`
 
-### Copywriting (20 points)
-- Clarity and conciseness
-- Call-to-action effectiveness  
-- Tone consistency
-- Information hierarchy
-- Microcopy quality
+## How It Works
 
-### Accessibility (10 points)
-- Color contrast compliance (WCAG AA)
-- Text readability
-- Button/link visibility
-- Visual hierarchy
+1) URL flow
+- Puppeteer opens the page (desktop viewport), waits for network idle, tries a JPEG screenshot, optimizes it with Sharp
+- If capture fails, analysis still runs without the image
 
-## 🏗️ Build & Deploy
+2) Image flow
+- Upload validated and standardized (format/size) with Sharp
 
-### Development
-```bash
-npm run dev  # Start both services
-```
+3) Analysis
+- `openRouterService` builds a structured prompt; requests strict JSON via OpenRouter
+- If a model rejects images (400/415), the call is retried text‑only for that model
+- If rate‑limited/low credit (429/402), the next model is tried
+- Clear error messages bubble up (`AI analysis failed: <reason>`) for the UI to show
 
-### Production Build
-```bash
-npm run build          # Build both frontend and backend
-npm run build:frontend # Build React app only  
-npm run build:backend  # Build Node.js API only
-```
+4) Normalization
+- Computes overall and per‑category percentages, assigns IDs, compiles evidence
 
-### Production Start
-```bash
-npm start  # Start production server
-```
+5) Frontend rendering
+- Data stored as `mainAuditData` in `sessionStorage`; `/report` reads it and renders
+- Heuristic names appear as compact chips; persona journey is rendered only if present (no static fallbacks)
 
-## 📁 Project Structure
+## Configuration
 
-```
-ux-audit-platform/
-├── frontend/                 # React TypeScript app
-│   ├── src/
-│   │   ├── components/      # React components
-│   │   │   ├── AuditForm.tsx
-│   │   │   ├── AuditResults.tsx
-│   │   │   ├── Header.tsx
-│   │   │   ├── ScoreCard.tsx
-│   │   │   ├── IssuesList.tsx
-│   │   │   └── PDFExport.tsx
-│   │   ├── types.ts         # TypeScript interfaces
-│   │   └── App.tsx          # Main app component
-│   ├── public/              # Static assets
-│   └── package.json
-├── backend/                  # Node.js Express API
-│   ├── src/
-│   │   ├── controllers/     # Request handlers
-│   │   ├── services/        # Business logic
-│   │   │   ├── geminiService.ts    # AI analysis
-│   │   │   └── screenshotService.ts # Image processing
-│   │   ├── types/           # TypeScript interfaces  
-│   │   ├── utils/           # Helper functions
-│   │   └── index.ts         # Express server
-│   ├── uploads/             # Temporary file storage
-│   ├── .env                 # Environment variables
-│   └── package.json
-├── package.json             # Root package with scripts
-└── README.md
-```
+Backend (`backend/.env`)
+- `OPENROUTER_API_KEY`: OpenRouter key
+- `PORT`: default `3001`
+- `NODE_ENV`: affects CORS (localhost allowed in dev)
 
-## 🔧 Configuration
+Frontend
+- Dev points to `http://localhost:3001`; prod uses relative `/api/audit`
 
-### Environment Variables (backend/.env)
-- `GEMINI_API_KEY`: Google Gemini API key (already configured)
-- `PORT`: Backend server port (default: 3001)
-- `NODE_ENV`: Environment (development/production)
+## Troubleshooting
 
-### Gemini AI Settings
-- Model: `gemini-1.5-pro`
-- Temperature: 0.1 (focused responses)
-- Max Output: 4096 tokens
-- Context: Comprehensive UX analysis prompt
+Puppeteer
+- On Linux, install common Chrome libs (X11/Gtk). To use system Chrome: set `PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true` and `PUPPETEER_EXECUTABLE_PATH`.
 
-## 🚨 Troubleshooting
+CORS
+- Allowed dev origins: `http://localhost:3000`, `http://127.0.0.1:3000` (see `backend/src/index.ts`)
 
-### Common Issues
+OpenRouter
+- Ensure `OPENROUTER_API_KEY` is valid and outbound HTTPS to `openrouter.ai` is permitted.
 
-**Puppeteer/Chrome Issues**:
-```bash
-# Install Chrome dependencies (Linux)
-sudo apt-get install -y libx11-xcb1 libxcomposite1 libxcursor1 libxdamage1 libxi6 libxtst6 libnss3 libcups2 libxss1 libxrandr2 libasound2 libatk1.0-0 libgtk-3-0
+## Behavior Notes
 
-# Or use system Chrome
-export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-export PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome
-```
+- Real Audit Report renders only with actual AI data (no dummy mixing).
+- On failure, `/report?error=1` shows a clear banner with the reason and a Retry button.
+- A separate `SampleReport` exists for demos and can be wired later if desired.
 
-**Memory Issues**:
-- Increase Node.js memory: `node --max-old-space-size=4096`
-- Reduce image quality in `screenshotService.ts`
+## Roadmap
 
-**CORS Issues**:
-- Update allowed origins in `backend/src/index.ts`
-- Check frontend URL matches CORS configuration
+- Auth + saved audit history, comments, share links
+- Batch/multi‑page audits; webhooks
+- Deeper a11y/perf/SEO signals; heatmaps
+- White‑label themes and agency tooling
 
-### Performance Optimization
-- Enable Redis caching for repeated audits
-- Implement image compression for faster uploads  
-- Add request rate limiting for production use
-- Use CDN for static assets
+## License & Credits
 
-## 📈 Future Enhancements
-
-- **User Accounts**: Save audit history and projects
-- **Team Collaboration**: Share audits and comments
-- **Advanced Analytics**: Heatmaps, SEO, performance metrics
-- **API Integration**: Webhook support and third-party tools
-- **White Label**: Custom branding for agencies
-- **Batch Processing**: Multiple URL analysis
-- **Video Analysis**: Screen recording audit capability
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create feature branch: `git checkout -b feature/new-feature`
-3. Commit changes: `git commit -am 'Add new feature'`
-4. Push to branch: `git push origin feature/new-feature`
-5. Submit pull request
-
-## 📄 License
-
-MIT License - see LICENSE file for details
-
-## 🆘 Support
-
-For issues and questions:
-- Create GitHub issue
-- Email: support@ly-design.com
-- Documentation: [Project Wiki](link-to-wiki)
-
----
-
-**Powered by LY Design** 🎨✨
+- MIT (if included)
+- Built by Lemon Yellow Design. Uses OpenRouter, Puppeteer, Sharp, React, Tailwind, CRA.
