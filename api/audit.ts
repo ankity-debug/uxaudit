@@ -4,10 +4,25 @@ import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Enable CORS
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  // Enhanced CORS configuration
+  const origin = req.headers.origin;
+  const allowedOrigins = [
+    'http://localhost:3000',
+    'http://localhost:3001', 
+    'https://uxaudit.vercel.app',
+    process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null
+  ].filter(Boolean);
+
+  if (origin && allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  } else if (!origin) {
+    // Allow requests without origin (like curl)
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  }
+  
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Credentials', 'false');
   
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -146,8 +161,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   } catch (error) {
     console.error('Audit handler error:', error);
+    
+    // Enhanced error reporting for debugging
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
     return res.status(500).json({ 
-      error: 'Internal server error occurred during audit' 
+      error: 'Internal server error occurred during audit',
+      message: errorMessage,
+      timestamp: new Date().toISOString(),
+      environment: process.env.VERCEL_ENV || 'development',
+      // Include stack trace only in development
+      ...(process.env.VERCEL_ENV !== 'production' && { stack: errorStack })
     });
   }
 }

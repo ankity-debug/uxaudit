@@ -27,11 +27,17 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  res.status(200).json({ 
-    status: 'healthy', 
-    service: 'UX Audit Platform API',
+  const hasOpenRouterKey = !!process.env.OPENROUTER_API_KEY;
+  
+  res.status(200).json({
+    ok: true,
+    hasKey: hasOpenRouterKey,
+    environment: process.env.VERCEL_ENV || 'development',
+    region: process.env.VERCEL_REGION || 'unknown',
     timestamp: new Date().toISOString(),
-    version: '1.0.0',
-    environment: process.env.VERCEL_ENV || 'development'
+    runtime: 'vercel-serverless',
+    nodeVersion: process.version,
+    // Don't expose the actual key value for security
+    keyStatus: hasOpenRouterKey ? 'configured' : 'missing'
   });
 }
