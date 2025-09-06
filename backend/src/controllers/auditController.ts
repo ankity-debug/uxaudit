@@ -46,17 +46,9 @@ export class AuditController {
 
         auditUrl = url;
         
-        // Capture screenshot of the website
-        try {
-          const screenshotBuffer = await this.screenshotService.captureWebsite(url);
-          imageBase64 = this.screenshotService.bufferToBase64(screenshotBuffer);
-        } catch (screenshotError) {
-          console.error('Screenshot error:', screenshotError);
-          res.status(500).json({ 
-            error: 'Failed to capture website screenshot. Please ensure the URL is accessible.' 
-          });
-          return;
-        }
+        // Skip screenshot capture for now and proceed with URL-only analysis
+        console.log(`Performing URL-only audit for: ${url}`);
+        imageBase64 = undefined;
       } else if (type === 'image') {
         if (!file) {
           res.status(400).json({ error: 'Image file is required for image audit' });

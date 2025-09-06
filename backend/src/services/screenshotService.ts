@@ -14,7 +14,12 @@ export class ScreenshotService {
           '--disable-dev-shm-usage',
           '--disable-gpu',
           '--disable-web-security',
-          '--disable-features=VizDisplayCompositor'
+          '--disable-features=VizDisplayCompositor',
+          '--disable-extensions',
+          '--disable-background-timer-throttling',
+          '--disable-backgrounding-occluded-windows',
+          '--disable-renderer-backgrounding',
+          '--disable-dev-tools'
         ]
       });
 
@@ -30,14 +35,31 @@ export class ScreenshotService {
       // Set user agent
       await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
 
-      // Navigate to URL with timeout
-      await page.goto(url, {
-        waitUntil: 'networkidle2',
-        timeout: 30000
-      });
+      // Navigate to URL with more robust error handling
+      try {
+        await page.goto(url, {
+          waitUntil: 'domcontentloaded', // Less strict than networkidle2
+          timeout: 15000 // Reduced timeout
+        });
 
-      // Wait for any dynamic content
-      await new Promise(resolve => setTimeout(resolve, 2000));
+        // Try to wait for load event but don't fail if it times out
+        try {
+          await page.waitForFunction('document.readyState === "complete"', { timeout: 5000 });
+        } catch (loadError) {
+          console.log('Load state timeout, proceeding with screenshot');
+        }
+
+        // Wait for any dynamic content but with shorter timeout
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+      } catch (navError) {
+        console.log('Navigation timeout, trying with basic load');
+        // Try again with even simpler loading
+        await page.goto(url, {
+          waitUntil: 'domcontentloaded',
+          timeout: 10000
+        });
+      }
 
       // Take screenshot
       const screenshot = await page.screenshot({
@@ -59,7 +81,11 @@ export class ScreenshotService {
 
     } catch (error) {
       if (browser) {
-        await browser.close();
+        try {
+          await browser.close();
+        } catch (closeError) {
+          console.error('Error closing browser:', closeError);
+        }
       }
       console.error('Screenshot capture error:', error);
       throw new Error(`Failed to capture screenshot: ${error instanceof Error ? error.message : 'Unknown error'}`);
