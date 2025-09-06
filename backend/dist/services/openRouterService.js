@@ -21,33 +21,37 @@ class OpenRouterService {
             try {
                 const analysisPrompt = this.buildAnalysisPrompt(prompt);
                 const makeMessages = (withImage) => ([
-                    withImage && prompt.imageBase64
-                        ? { role: 'user', content: [
-                                { type: 'text', text: analysisPrompt },
-                                { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${prompt.imageBase64}` } }
-                            ] }
-                        : { role: 'user', content: analysisPrompt }
+                    {
+                        role: 'user',
+                        content: withImage && prompt.imageBase64 ? [
+                            { type: 'text', text: analysisPrompt },
+                            { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${prompt.imageBase64}` } }
+                        ] : analysisPrompt
+                    }
                 ]);
-                const doRequest = async (withImage) => axios_1.default.post(this.baseURL, {
-                    model: models[i],
-                    messages: makeMessages(withImage),
-                    temperature: 0.1,
-                    max_tokens: 4096,
-                    response_format: { type: 'json_object' }
-                }, {
-                    headers: {
-                        'Authorization': `Bearer ${this.apiKey}`,
-                        'Content-Type': 'application/json',
-                        'HTTP-Referer': 'https://lemonyellow.design',
-                        'X-Title': 'LimeMind UX Audit Tool'
-                    },
-                    timeout: 90000
-                });
+                const doRequest = async (withImage) => {
+                    return axios_1.default.post(this.baseURL, {
+                        model: models[i],
+                        messages: makeMessages(withImage),
+                        temperature: 0.1,
+                        max_tokens: 4096,
+                        response_format: { type: 'json_object' }
+                    }, {
+                        headers: {
+                            'Authorization': `Bearer ${this.apiKey}`,
+                            'Content-Type': 'application/json',
+                            'HTTP-Referer': 'https://lemonyellow.design',
+                            'X-Title': 'LimeMind UX Audit Tool'
+                        },
+                        timeout: 90000
+                    });
+                };
                 let response;
                 try {
                     response = await doRequest(true);
                 }
                 catch (e) {
+                    // If model rejects images, retry text-only once for this model
                     const status = e?.response?.status;
                     const msg = e?.response?.data?.error?.message || e?.message || '';
                     const imageUnsupported = /image input|image not supported|no endpoints.*image/i.test(msg);
@@ -58,23 +62,24 @@ class OpenRouterService {
                         throw e;
                     }
                 }
+                // Provider-level error sometimes arrives in body with 200
                 if (response?.data?.error) {
                     const code = response.data.error.code || 500;
+                    // Force catch path with a faux axios-like error shape
                     throw { response: { status: code, data: response.data } };
                 }
-                const analysisText = (response.data.choices?.[0]?.message?.content) || (response.data.choices?.[0]?.message);
+                const analysisText = response.data.choices?.[0]?.message?.content || response.data.choices?.[0]?.message;
                 return this.parseOpenRouterResponse(JSON.parse(analysisText), prompt, models[i]);
             }
             catch (error) {
                 const status = error?.response?.status || error?.response?.data?.error?.code;
                 console.error(`OpenRouter API error with ${models[i]}:`, error.response?.data || error.message);
-                // If it's a rate limit error and we have more models to try
                 if ((status === 429 || status === 402) && i < models.length - 1) {
                     console.log(`Rate limited or insufficient credits on ${models[i]}, trying ${models[i + 1]}...`);
                     continue;
                 }
                 // Bubble up the last error to caller (no demo fallback)
-                let reason = (error.response?.data?.error) || error.message || 'Unknown analysis error';
+                let reason = error.response?.data?.error || error.message || 'Unknown analysis error';
                 if (typeof reason === 'object')
                     reason = reason.message || JSON.stringify(reason);
                 throw new Error(`AI analysis failed: ${reason}`);
@@ -187,10 +192,10 @@ Respond ONLY with a JSON object matching this new Lemon Yellow audit structure:
     }
   ],
   "scores": {
-    "heuristics": { "score": 0, "maxScore": 40, "findings": "Site-specific heuristic assessment" },
-    "uxLaws": { "score": 0, "maxScore": 30, "findings": "Site-specific UX laws assessment" },
-    "copywriting": { "score": 0, "maxScore": 20, "findings": "Site-specific copywriting assessment" },
-    "accessibility": { "score": 0, "maxScore": 10, "findings": "Site-specific accessibility assessment" }
+    "heuristics": { "score": 0.0, "maxScore": 5.0, "findings": "Site-specific heuristic assessment" },
+    "uxLaws": { "score": 0.0, "maxScore": 5.0, "findings": "Site-specific UX laws assessment" },
+    "copywriting": { "score": 0.0, "maxScore": 5.0, "findings": "Site-specific copywriting assessment" },
+    "accessibility": { "score": 0.0, "maxScore": 5.0, "findings": "Site-specific accessibility assessment" }
   },
   "analysisLog": {
     "siteBusinessGoal": "Primary business objective identified for this site",
@@ -389,29 +394,29 @@ Strict requirements:
         const accessibilityIssues = demoIssues.filter(i => i.category === 'accessibility');
         const scores = {
             heuristics: {
-                score: 25,
-                maxScore: 40,
+                score: 3.1,
+                maxScore: 5.0,
                 percentage: 62.5,
                 issues: heuristicsIssues,
                 insights: 'Navigation consistency needs improvement'
             },
             uxLaws: {
-                score: 18,
-                maxScore: 30,
+                score: 3.0,
+                maxScore: 5.0,
                 percentage: 60,
                 issues: uxLawsIssues,
                 insights: 'Click targets and information density issues identified'
             },
             copywriting: {
-                score: 16,
-                maxScore: 20,
+                score: 4.0,
+                maxScore: 5.0,
                 percentage: 80,
                 issues: copywritingIssues,
                 insights: 'Generally good content with minor CTA improvements needed'
             },
             accessibility: {
-                score: 5,
-                maxScore: 10,
+                score: 2.5,
+                maxScore: 5.0,
                 percentage: 50,
                 issues: accessibilityIssues,
                 insights: 'Color contrast compliance needs attention'
