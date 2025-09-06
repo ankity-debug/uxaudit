@@ -1,7 +1,7 @@
 {
-  "installCommand": "npm ci && npm ci --prefix uxaudit/frontend",
-  "buildCommand": "npm --prefix uxaudit/frontend run build",
-  "outputDirectory": "uxaudit/frontend/build",
+  "installCommand": "npm ci && npm ci --prefix frontend",
+  "buildCommand": "npm --prefix frontend run build",
+  "outputDirectory": "frontend/build",
   "rewrites": [
     { 
       "source": "/api/(.*)", 
