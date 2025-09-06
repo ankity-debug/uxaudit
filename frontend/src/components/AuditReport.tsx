@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { AuditData } from '../types';
 import { getRelevantCaseStudies } from '../data/caseStudies';
 import html2pdf from 'html2pdf.js';
@@ -8,7 +8,6 @@ interface AuditReportProps {
 }
 
 export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
-  const [faviconError, setFaviconError] = useState(false);
   // Deduplication & phrasing helpers to keep sections distinctive
   const normalizeText = (t: string) =>
     t
@@ -18,7 +17,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
       .replace(/\s+/g, ' ')
       .trim();
 
-  const getThemeId = (t: string) => {
+  const getThemeId = useCallback((t: string) => {
     const s = normalizeText(t);
     if (/44px|tap|touch|click target|target size/.test(s)) return 'tap-target';
     if (/(navigation|nav|menu).*(different|inconsistent|across pages|vary|behaviors)/.test(s)) return 'nav-consistency';
@@ -30,9 +29,9 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
     if (/hierarchy|information architecture|ia|findability|grouping/.test(s)) return 'ia-hierarchy';
     if (/feedback|status|loading|progress|spinner/.test(s)) return 'feedback-status';
     return s.split(' ').slice(0, 5).join('-');
-  };
+  }, []);
 
-  const themePhrases: Record<string, { overall: string; journey: string; heuristic: string }> = {
+  const themePhrases = useMemo((): Record<string, { overall: string; journey: string; heuristic: string }> => ({
     'tap-target': {
       overall: 'Standardize 44px+ tap targets across mobile to reduce misses.',
       journey: 'Sub‑44px tap targets in critical flows lead to missed taps.',
@@ -78,9 +77,9 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
       journey: 'Missing progress cues create uncertainty during waits.',
       heuristic: 'Visibility of system status: surface loading/progress states.'
     }
-  };
+  }), []);
 
-  const rewriteForContext = (
+  const rewriteForContext = useCallback((
     raw: string,
     context: 'overall' | 'journey' | 'heuristic',
     heuristicName?: string
@@ -97,9 +96,9 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
     if (context === 'overall') return `Elevate: ${base}.`;
     if (context === 'journey') return `In‑flow impact: ${base}.`;
     return `Guideline gap: ${base}.`;
-  };
+  }, [getThemeId, themePhrases]);
 
-  const uniqueByTheme = (items: { text: string; extra?: any }[], seen: Set<string>) => {
+  const uniqueByTheme = useCallback((items: { text: string; extra?: any }[], seen: Set<string>) => {
     const out: { text: string; theme: string; extra?: any }[] = [];
     for (const it of items) {
       const theme = getThemeId(it.text);
@@ -109,7 +108,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
       if (seen.size > 64) break;
     }
     return out;
-  };
+  }, [getThemeId]);
 
   const { overallPoints, heuristicItems, filteredFixes } = useMemo(() => {
     const seen = new Set<string>();
@@ -144,7 +143,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
       })),
       filteredFixes: fixes
     };
-  }, [data]);
+  }, [data, getThemeId, rewriteForContext, uniqueByTheme]);
   // Get platform name from URL or use default
   const getPlatformName = () => {
     if (data.url) {
@@ -158,18 +157,6 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
     return 'Uploaded Image Analysis';
   };
 
-  // Get favicon URL for the platform
-  const getFaviconUrl = (): string | undefined => {
-    if (data.url) {
-      try {
-        const url = new URL(data.url);
-        return `https://www.google.com/s2/favicons?domain=${url.hostname}&sz=32`;
-      } catch {
-        return undefined;
-      }
-    }
-    return undefined;
-  };
 
   // Get relevant case studies using smart matching
   const getRelevantCaseStudiesForAudit = () => {
@@ -619,7 +606,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
               <p className="font-medium text-gray-800 mt-2">Quick wins and structural improvements.</p>
             </div>
             <div className="space-y-2 mt-6">
-              {getRecommendedFixes().map((fix, index) => (
+              {getRecommendedFixes().map((fix) => (
                 <div key={fix.id} className="flex gap-3 items-start p-3 rounded-xl hover:bg-neutral-50 transition">
                   <div className="h-6 w-6 rounded-full bg-yellow-400 grid place-items-center mt-0.5">
                     <span className="text-[14px] font-semibold">✓</span>
@@ -659,7 +646,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
             Relevant Case Studies
           </h2>
           <div className="grid grid-cols-2 gap-6">
-            {getRelevantCaseStudiesForAudit().map((caseStudy, index) => (
+            {getRelevantCaseStudiesForAudit().map((caseStudy) => (
               <a
                 key={caseStudy.id}
                 href={caseStudy.url}

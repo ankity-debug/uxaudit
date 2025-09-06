@@ -1,7 +1,11 @@
 {
-  "version": 2,
-  "installCommand": "npm ci && npm ci --prefix frontend && npm ci --prefix backend",
-  "buildCommand": "npm run build",
-  "outputDirectory": "frontend/build"
+  "installCommand": "npm ci && npm ci --prefix uxaudit/frontend",
+  "buildCommand": "npm --prefix uxaudit/frontend run build",
+  "outputDirectory": "uxaudit/frontend/build",
+  "rewrites": [
+    { 
+      "source": "/api/(.*)", 
+      "destination": "https://your-backend.com/api/$1" 
+    }
+  ]
 }
-
