@@ -35,9 +35,11 @@ class AuditController {
                         imageBase64 = this.screenshotService.bufferToBase64(screenshotBuffer);
                     }
                     catch (screenshotError) {
-                        console.error('Screenshot error (continuing without screenshot):', screenshotError);
-                        // Gracefully proceed without screenshot if capture fails
-                        imageBase64 = undefined;
+                        console.error('Screenshot error:', screenshotError);
+                        res.status(500).json({
+                            error: 'Failed to capture website screenshot. Please ensure the URL is accessible.'
+                        });
+                        return;
                     }
                 }
                 else if (type === 'image') {
@@ -79,7 +81,7 @@ class AuditController {
                 }
                 catch (analysisError) {
                     console.error('Analysis error:', analysisError);
-                    const reason = (analysisError?.message) || 'Failed to complete UX analysis';
+                    const reason = analysisError?.message || 'Failed to complete UX analysis';
                     res.status(500).json({
                         error: 'Audit failed',
                         message: reason
@@ -100,7 +102,10 @@ class AuditController {
                 timestamp: new Date().toISOString()
             });
         };
-        const apiKey = process.env.OPENROUTER_API_KEY || 'demo';
+        const apiKey = process.env.OPENROUTER_API_KEY;
+        if (!apiKey) {
+            throw new Error('OPENROUTER_API_KEY environment variable is required');
+        }
         this.openRouterService = new openRouterService_1.OpenRouterService(apiKey);
         this.screenshotService = new screenshotService_1.ScreenshotService();
     }
