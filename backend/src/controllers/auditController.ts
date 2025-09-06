@@ -85,7 +85,7 @@ export class AuditController {
         const auditResult: AuditData = await this.openRouterService.analyzeUX({
           imageBase64,
           url: auditUrl,
-          analysisType: type === 'url' ? 'url' : 'image',
+          analysisType: type === 'url' ? 'url' : 'screenshot',
           targetAudience,
           userGoals,
           businessObjectives
