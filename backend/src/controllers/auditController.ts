@@ -1,19 +1,20 @@
 import { Request, Response } from 'express';
-import { OpenRouterService } from '../services/openRouterService';
+import { GeminiService } from '../services/geminiService';
 import { ScreenshotService } from '../services/screenshotService';
 import { AuditData } from '../types';
 
 export class AuditController {
-  private openRouterService: OpenRouterService;
+  private geminiService: GeminiService;
   private screenshotService: ScreenshotService;
 
   constructor() {
+    // Use the OpenRouter API key from environment variables
     const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
       throw new Error('OPENROUTER_API_KEY environment variable is required');
     }
     
-    this.openRouterService = new OpenRouterService(apiKey);
+    this.geminiService = new GeminiService(apiKey);
     this.screenshotService = new ScreenshotService();
   }
 
@@ -72,9 +73,9 @@ export class AuditController {
         }
       }
 
-      // Perform UX analysis with OpenRouter
+      // Perform UX analysis with Gemini
       try {
-        const auditResult: AuditData = await this.openRouterService.analyzeUX({
+        const auditResult: AuditData = await this.geminiService.analyzeUX({
           imageBase64,
           url: auditUrl,
           analysisType: type === 'url' ? 'url' : 'screenshot',
