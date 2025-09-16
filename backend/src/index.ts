@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { AuditController } from './controllers/auditController';
 import { upload } from './utils/multerConfig';
+import path from 'path';
 
 // Load environment variables
 dotenv.config();
@@ -14,7 +15,7 @@ const PORT = process.env.PORT || 3001;
 app.use(cors({
   origin: (origin, cb) => {
     if (!origin) return cb(null, true);
-    const devAllowed = ['http://localhost:3000', 'http://127.0.0.1:3000'];
+    const devAllowed = ['http://localhost:3000', 'http://127.0.0.1:3000', 'https://uxaudit.ly.design'];
     if (process.env.NODE_ENV !== 'production' && devAllowed.includes(origin)) return cb(null, true);
     // Add production origins here if needed
     return cb(null, true);
@@ -43,6 +44,18 @@ app.get('/api/status', auditController.getAuditStatus);
 // Main audit endpoint - handles both URL and image uploads
 app.post('/api/audit', upload.single('image'), auditController.auditWebsite);
 
+
+// Absolute path to the frontend build
+const frontendBuild = path.resolve(__dirname, "..", "..", "frontend", "build");
+
+// Serve static assets
+app.use(express.static(frontendBuild));
+
+// SPA fallback: always return index.html
+app.get("*", (req, res) => {
+  res.sendFile(path.join(frontendBuild, "index.html"));
+});
+
 // Error handling middleware
 app.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error('API Error:', error);
@@ -65,10 +78,6 @@ app.use((error: any, req: express.Request, res: express.Response, next: express.
   });
 });
 
-// 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({ error: 'Endpoint not found' });
-});
 
 // Start server
 app.listen(PORT, () => {
