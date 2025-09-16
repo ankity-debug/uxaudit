@@ -1,1 +1,0 @@
-{"version":3,"file":"screenshotService.d.ts","sourceRoot":"","sources":["../../src/services/screenshotService.ts"],"names":[],"mappings":"AAGA,qBAAa,iBAAiB;IACtB,cAAc,CAAC,GAAG,EAAE,MAAM,GAAG,OAAO,CAAC,MAAM,CAAC;IA0F5C,oBAAoB,CAAC,MAAM,EAAE,MAAM,GAAG,OAAO,CAAC,MAAM,CAAC;IAiB3D,cAAc,CAAC,MAAM,EAAE,MAAM,GAAG,MAAM;CAGvC"}
