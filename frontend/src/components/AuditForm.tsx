@@ -1,4 +1,4 @@
-import React, { useState, KeyboardEvent } from 'react';
+import React, { useState, KeyboardEvent, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Upload, Globe, CheckCircle } from 'lucide-react';
 
@@ -13,16 +13,82 @@ export const AuditForm: React.FC<AuditFormProps> = ({ onSubmit, isLoading }) => 
   const [url, setUrl] = useState('');
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [error, setError] = useState('');
+  const [isDragging, setIsDragging] = useState(false);
+  const [loadingStep, setLoadingStep] = useState(0);
+
+  const loadingSteps = [
+    'Analyzing interface...',
+    'Checking heuristics...',
+    'Assessing revenue impact...',
+    'Evaluating accessibility...',
+    'Generating insights...'
+  ];
+
+  // Cycle through loading steps
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isLoading) {
+      setLoadingStep(0);
+      interval = setInterval(() => {
+        setLoadingStep(prev => (prev + 1) % loadingSteps.length);
+      }, 2000); // Change step every 2 seconds
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isLoading, loadingSteps.length]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 10 * 1024 * 1024) {
-        setError('File size must be less than 10MB');
-        return;
-      }
-      setError('');
-      setUploadedFile(file);
+      processFile(file);
+    }
+  };
+
+  const processFile = (file: File) => {
+    if (file.size > 10 * 1024 * 1024) {
+      setError('File size must be less than 10MB');
+      return;
+    }
+    if (!file.type.startsWith('image/')) {
+      setError('Please upload an image file');
+      return;
+    }
+    setError('');
+    setUploadedFile(file);
+    setActiveTab('image'); // Switch to image tab when file is dropped
+  };
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (activeTab === 'image') {
+      setIsDragging(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only set dragging to false if we're leaving the main container
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) {
+      processFile(files[0]);
     }
   };
 
@@ -57,10 +123,12 @@ export const AuditForm: React.FC<AuditFormProps> = ({ onSubmit, isLoading }) => 
 
   return (
     <div 
-      className="min-h-screen relative" 
+      className={`min-h-screen relative ${
+        activeTab === 'image' && isDragging ? 'bg-blue-50' : ''
+      }`}
       style={{
         fontFamily: 'Inter, sans-serif',
-        background: `
+        background: activeTab === 'image' && isDragging ? 'rgba(59, 130, 246, 0.05)' : `
           /* overlay on top (semi-transparent) */
           radial-gradient(circle at 35% 25%,
             rgba(255,255,255,0.85) 0%,
@@ -78,6 +146,10 @@ export const AuditForm: React.FC<AuditFormProps> = ({ onSubmit, isLoading }) => 
         backgroundSize: 'auto, auto, auto',
         backgroundRepeat: 'no-repeat, repeat, repeat'
       }}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
     >
       
       <div className="relative z-10">
@@ -106,15 +178,20 @@ export const AuditForm: React.FC<AuditFormProps> = ({ onSubmit, isLoading }) => 
               transition={{ duration: 0.2, ease: 'easeOut' }}
             >
               <h1 
-                className="font-bold text-gray-900 mb-6 leading-tight"
-                style={{ fontSize: 'clamp(2.5rem, 5vw, 4rem)' }}
+                className="text-gray-900 mb-6 leading-tight"
+                style={{ 
+                  fontSize: 'clamp(2.5rem, 5vw, 4rem)',
+                  fontFamily: '"SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+                  fontWeight: '800',
+                  letterSpacing: '-0.025em'
+                }}
               >
                 Design clarity,
                 <br />
                 instantly.
               </h1>
               <p className="text-xl text-slate-700 max-w-xl leading-relaxed mb-8">
-                Uncover UX issues in seconds. Powered by Lemon Yellow's design expertise.
+                Instant audits that turn into ticket-ready tasks.
               </p>
             </motion.div>
 
@@ -129,7 +206,25 @@ export const AuditForm: React.FC<AuditFormProps> = ({ onSubmit, isLoading }) => 
                 <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8">
                   
                   {/* Segmented Tabs */}
-                  <div className="flex bg-gray-100 rounded-xl p-1 mb-6" role="tablist" aria-label="Audit input method">
+                  <div className="relative flex bg-gray-100 rounded-xl p-1 mb-6" role="tablist" aria-label="Audit input method">
+                    {/* Animated Background */}
+                    <motion.div
+                      className="absolute top-1 bottom-1 bg-white rounded-lg shadow-sm"
+                      initial={false}
+                      animate={{
+                        x: activeTab === 'url' ? '0%' : '100%',
+                        width: 'calc(50% - 4px)'
+                      }}
+                      transition={{
+                        type: 'spring',
+                        stiffness: 300,
+                        damping: 25,
+                        duration: 0.4
+                      }}
+                      style={{
+                        left: '4px'
+                      }}
+                    />
                     <button
                       type="button"
                       role="tab"
@@ -137,9 +232,9 @@ export const AuditForm: React.FC<AuditFormProps> = ({ onSubmit, isLoading }) => 
                       aria-controls="url-panel"
                       onClick={() => setActiveTab('url')}
                       onKeyDown={(e) => handleTabKeyDown(e, 'url')}
-                      className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg text-sm font-medium transition-all min-h-[44px] ${
+                      className={`relative z-10 flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg text-sm font-medium transition-all duration-200 min-h-[44px] ${
                         activeTab === 'url'
-                          ? 'bg-white text-gray-900 shadow-sm'
+                          ? 'text-gray-900'
                           : 'text-gray-600 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2'
                       }`}
                     >
@@ -153,9 +248,9 @@ export const AuditForm: React.FC<AuditFormProps> = ({ onSubmit, isLoading }) => 
                       aria-controls="image-panel"
                       onClick={() => setActiveTab('image')}
                       onKeyDown={(e) => handleTabKeyDown(e, 'image')}
-                      className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg text-sm font-medium transition-all min-h-[44px] ${
+                      className={`relative z-10 flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg text-sm font-medium transition-all duration-200 min-h-[44px] ${
                         activeTab === 'image'
-                          ? 'bg-white text-gray-900 shadow-sm'
+                          ? 'text-gray-900'
                           : 'text-gray-600 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2'
                       }`}
                     >
@@ -195,6 +290,8 @@ export const AuditForm: React.FC<AuditFormProps> = ({ onSubmit, isLoading }) => 
                             <div className={`border-2 border-dashed rounded-xl text-center transition-all cursor-pointer h-[52px] flex items-center justify-center ${
                               uploadedFile
                                 ? 'border-green-400 bg-green-50'
+                                : isDragging
+                                ? 'border-blue-400 bg-blue-50'
                                 : 'border-gray-300 hover:border-gray-400 bg-gray-50 focus-within:ring-2 focus-within:ring-yellow-400'
                             }`}>
                               <input
@@ -217,14 +314,14 @@ export const AuditForm: React.FC<AuditFormProps> = ({ onSubmit, isLoading }) => 
                                 <div className="flex items-center justify-center gap-2">
                                   <Upload className="w-4 h-4 text-gray-400 flex-shrink-0" />
                                   <p className="text-sm text-gray-700">
-                                    Drop screenshot or click to browse
+                                    {isDragging ? 'Drop image here' : 'Drop screenshot or click to browse'}
                                   </p>
                                 </div>
                               )}
                             </div>
                           </label>
                           <p className="text-xs text-gray-500 mt-3 leading-tight">
-                            Upload a screenshot of your website or interface
+                            {isDragging ? 'Release to upload image' : 'Upload a screenshot of your website or interface'}
                           </p>
                         </div>
                       )}
@@ -244,8 +341,32 @@ export const AuditForm: React.FC<AuditFormProps> = ({ onSubmit, isLoading }) => 
                     >
                       {isLoading ? (
                         <div className="flex items-center justify-center space-x-3">
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>
-                          <span>Analysing...</span>
+                          <div className="flex space-x-1">
+                            <motion.div 
+                              className="w-2 h-2 bg-gray-900 rounded-full"
+                              animate={{ scale: [1, 1.2, 1] }}
+                              transition={{ duration: 1, repeat: Infinity, delay: 0 }}
+                            />
+                            <motion.div 
+                              className="w-2 h-2 bg-gray-900 rounded-full"
+                              animate={{ scale: [1, 1.2, 1] }}
+                              transition={{ duration: 1, repeat: Infinity, delay: 0.2 }}
+                            />
+                            <motion.div 
+                              className="w-2 h-2 bg-gray-900 rounded-full"
+                              animate={{ scale: [1, 1.2, 1] }}
+                              transition={{ duration: 1, repeat: Infinity, delay: 0.4 }}
+                            />
+                          </div>
+                          <motion.span
+                            key={loadingStep}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            transition={{ duration: 0.3 }}
+                          >
+                            {loadingSteps[loadingStep]}
+                          </motion.span>
                         </div>
                       ) : (
                         'Analyse UX'
@@ -254,7 +375,7 @@ export const AuditForm: React.FC<AuditFormProps> = ({ onSubmit, isLoading }) => 
                   </form>
 
                   {/* Microcopy */}
-                  <p className="text-xs text-gray-500 mt-4 text-center">
+                  <p className="text-xs text-gray-500 mt-4 text-left">
                     No storage. Instant insights.
                   </p>
                 </div>

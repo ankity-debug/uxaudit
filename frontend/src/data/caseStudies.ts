@@ -219,15 +219,30 @@ export const industryMapping: Record<string, string[]> = {
   'default': ['business', 'corporate', 'company', 'service', 'platform', 'website', 'app']
 };
 
-// Smart matching algorithm
+// Smart matching algorithm - only returns truly relevant case studies
 export function getRelevantCaseStudies(auditUrl?: string, auditSummary?: string, limit: number = 2): CaseStudy[] {
+  // If no context provided, return empty - no generic fallbacks
+  if (!auditUrl && !auditSummary) {
+    return [];
+  }
+
   let scoredCaseStudies = caseStudies.map(caseStudy => ({
     ...caseStudy,
     relevanceScore: calculateRelevanceScore(caseStudy, auditUrl, auditSummary)
   }));
 
+  // Filter out case studies with low relevance scores (less than 30)
+  // This prevents showing irrelevant case studies
+  const relevantCaseStudies = scoredCaseStudies.filter(cs => cs.relevanceScore >= 30);
+
+  // If no truly relevant case studies found, return empty
+  if (relevantCaseStudies.length === 0) {
+    console.log('No relevant case studies found for:', auditUrl);
+    return [];
+  }
+
   // Sort by relevance score (descending) and priority
-  scoredCaseStudies.sort((a, b) => {
+  relevantCaseStudies.sort((a, b) => {
     if (a.relevanceScore !== b.relevanceScore) {
       return b.relevanceScore - a.relevanceScore;
     }
@@ -236,111 +251,129 @@ export function getRelevantCaseStudies(auditUrl?: string, auditSummary?: string,
 
   // Debug logging
   console.log('Case Study Matching for:', auditUrl);
-  console.log('Top 5 matches:', scoredCaseStudies.slice(0, 5).map(cs => ({
+  console.log('Relevant matches found:', relevantCaseStudies.slice(0, limit).map(cs => ({
     title: cs.title,
     industry: cs.industry,
     score: cs.relevanceScore,
-    priority: cs.priority
+    priority: cs.priority,
+    description: cs.description.substring(0, 50) + '...'
   })));
 
-  return scoredCaseStudies.slice(0, limit);
+  // Only return studies that meet our relevance threshold
+  return relevantCaseStudies.slice(0, limit);
 }
 
 function calculateRelevanceScore(caseStudy: CaseStudy, auditUrl?: string, auditSummary?: string): number {
   let score = 0;
-  let hasIndustryMatch = false;
+  let hasStrongMatch = false;
 
-  // PRIORITY 1: Direct domain-based industry detection (highest priority)
+  // PRIORITY 1: Strong domain-based industry detection (highest priority)
   if (auditUrl) {
     const domain = extractDomain(auditUrl);
     
-    // Known fintech domains and patterns
+    // Fintech domains and patterns - strong matches only
     const fintechDomains = ['stripe.com', 'paypal.com', 'square.com', 'klarna.com', 'razorpay.com', 'payu.com'];
-    const fintechPatterns = ['pay', 'bank', 'finance', 'loan', 'money', 'card', 'payment'];
+    const fintechPatterns = ['pay', 'bank', 'finance', 'loan', 'money', 'card', 'payment', 'fintech'];
     
     if (fintechDomains.includes(domain) || fintechPatterns.some(pattern => domain.includes(pattern))) {
       if (caseStudy.industry === 'fintech') {
-        score += 60; // Reduced score for direct fintech match to allow keywords to have more impact
-        hasIndustryMatch = true;
+        score += 80;
+        hasStrongMatch = true;
       }
     }
     
-    // Healthcare domains
-    const healthcarePatterns = ['health', 'medical', 'doctor', 'hospital', 'clinic', 'pharma'];
+    // Healthcare domains - strong matches only
+    const healthcarePatterns = ['health', 'medical', 'doctor', 'hospital', 'clinic', 'pharma', 'healthcare'];
     if (healthcarePatterns.some(pattern => domain.includes(pattern))) {
       if (caseStudy.industry === 'healthcare') {
         score += 80;
-        hasIndustryMatch = true;
+        hasStrongMatch = true;
       }
     }
     
-    // E-commerce domains
-    const ecommercePatterns = ['shop', 'store', 'market', 'buy', 'cart', 'retail'];
+    // E-commerce domains - strong matches only
+    const ecommercePatterns = ['shop', 'store', 'market', 'buy', 'cart', 'retail', 'ecommerce', 'commerce'];
     if (ecommercePatterns.some(pattern => domain.includes(pattern))) {
       if (caseStudy.industry === 'ecommerce') {
         score += 80;
-        hasIndustryMatch = true;
+        hasStrongMatch = true;
+      }
+    }
+
+    // EdTech domains
+    const edtechPatterns = ['edu', 'learn', 'course', 'academy', 'school', 'university', 'training'];
+    if (edtechPatterns.some(pattern => domain.includes(pattern))) {
+      if (caseStudy.industry === 'edtech') {
+        score += 80;
+        hasStrongMatch = true;
+      }
+    }
+
+    // Real Estate domains
+    const realEstatePatterns = ['property', 'realestate', 'housing', 'homes', 'apartment'];
+    if (realEstatePatterns.some(pattern => domain.includes(pattern))) {
+      if (caseStudy.industry === 'real-estate') {
+        score += 80;
+        hasStrongMatch = true;
+      }
+    }
+
+    // SaaS domains
+    const saasPatterns = ['app', 'platform', 'software', 'saas', 'tool', 'dashboard', 'analytics'];
+    if (saasPatterns.some(pattern => domain.includes(pattern))) {
+      if (caseStudy.industry === 'saas') {
+        score += 70; // Slightly lower as SaaS is broader
+        hasStrongMatch = true;
       }
     }
   }
 
-  // PRIORITY 2: URL-based matching for broader industry terms
-  if (auditUrl && !hasIndustryMatch) {
-    const domain = extractDomain(auditUrl);
-    const urlKeywords = extractKeywordsFromUrl(auditUrl);
-    
-    // Direct industry match from URL
-    for (const [industry, keywords] of Object.entries(industryMapping)) {
-      if (keywords.some(keyword => domain.includes(keyword) || urlKeywords.includes(keyword))) {
-        if (caseStudy.industry === industry) {
-          score += 50;
-          hasIndustryMatch = true;
-        }
-      }
-    }
-
-    // Keyword matching in URL
-    const matchingKeywords = caseStudy.keywords.filter(keyword => 
-      domain.includes(keyword) || urlKeywords.includes(keyword)
-    );
-    score += matchingKeywords.length * 10;
-  }
-
-  // PRIORITY 3: Summary-based analysis (lower priority than URL)
-  if (auditSummary) {
+  // PRIORITY 2: Summary-based contextual analysis 
+  if (auditSummary && !hasStrongMatch) {
     const summaryLower = auditSummary.toLowerCase();
     
-    // Check for specific industry terms in summary
-    for (const [industry, keywords] of Object.entries(industryMapping)) {
-      const matches = keywords.filter(keyword => summaryLower.includes(keyword));
-      if (matches.length > 0) {
+    // Look for specific industry indicators in summary
+    const industryIndicators = {
+      'fintech': ['payment', 'financial', 'banking', 'lending', 'investment', 'money', 'transaction'],
+      'healthcare': ['health', 'medical', 'patient', 'doctor', 'clinic', 'hospital', 'treatment'],
+      'ecommerce': ['shopping', 'product', 'cart', 'checkout', 'retail', 'purchase', 'order'],
+      'edtech': ['education', 'learning', 'student', 'course', 'teaching', 'classroom', 'knowledge'],
+      'real-estate': ['property', 'real estate', 'housing', 'apartment', 'home', 'rent', 'buy'],
+      'saas': ['platform', 'dashboard', 'analytics', 'software', 'tool', 'system', 'interface']
+    };
+
+    for (const [industry, indicators] of Object.entries(industryIndicators)) {
+      const matches = indicators.filter(indicator => summaryLower.includes(indicator));
+      if (matches.length >= 2) { // Require at least 2 industry indicators
         if (caseStudy.industry === industry) {
-          const summaryScore = hasIndustryMatch ? 20 : 40; // Lower if we already have URL match
-          score += summaryScore + (matches.length * 5);
-          hasIndustryMatch = true;
+          score += 60 + (matches.length * 10);
+          hasStrongMatch = true;
+          break; // Only match one industry
         }
       }
     }
-
-    // Enhanced keyword matching in summary  
-    const matchingKeywords = caseStudy.keywords.filter(keyword => 
-      summaryLower.includes(keyword.replace('-', ' '))
-    );
-    score += matchingKeywords.length * 10; // Increased weight for summary keywords
   }
 
-  // PRIORITY 4: Fallback for generic business sites
-  if (!hasIndustryMatch) {
-    // For unknown industries, prioritize versatile, high-quality case studies
-    if (caseStudy.priority >= 9) {
-      score += 20; // High-priority versatile studies
-    } else if (caseStudy.priority >= 7) {
-      score += 15; // Medium-priority studies
+  // PRIORITY 3: Specific keyword matching (only if we have strong industry match)
+  if (hasStrongMatch) {
+    const urlKeywords = auditUrl ? extractKeywordsFromUrl(auditUrl) : [];
+    const summaryWords = auditSummary ? auditSummary.toLowerCase().split(/\s+/) : [];
+    const allWords = [...urlKeywords, ...summaryWords];
+
+    // Count exact keyword matches
+    const matchingKeywords = caseStudy.keywords.filter(keyword => 
+      allWords.some(word => word.includes(keyword) || keyword.includes(word))
+    );
+    
+    if (matchingKeywords.length > 0) {
+      score += matchingKeywords.length * 5; // Bonus for keyword matches
     }
   }
 
-  // Base priority score (minimal weight to ensure quality)
-  score += caseStudy.priority;
+  // Only add priority bonus if we have a strong industry match
+  if (hasStrongMatch) {
+    score += caseStudy.priority * 2; // Amplify priority for relevant studies
+  }
 
   return score;
 }

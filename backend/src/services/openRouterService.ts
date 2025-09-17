@@ -13,7 +13,6 @@ export class OpenRouterService {
   async analyzeUX(prompt: GeminiAnalysisPrompt): Promise<AuditData> {
     // Try multiple models in order of preference (free to premium)
     const models = [
-      'meta-llama/llama-3.2-3b-instruct:free',
       'google/gemma-3-27b-it:free'
     ];
     
@@ -99,55 +98,62 @@ You are a senior UX consultant from Lemon Yellow, renowned for delivering contex
 
 You are analyzing ${subject} to deliver a comprehensive UX audit following Lemon Yellow's signature audit flow. Every output must be specific, contextual, and demonstrate deep understanding of this particular experience.
 
+## CRITICAL CONTEXTUAL REQUIREMENTS
+ABSOLUTELY FORBIDDEN:
+- Generic percentages or business impact claims (like "+24% conversion rate")
+- Template language that could apply to any website
+- Fake competitive benchmarks or industry comparisons
+- Made-up statistics or projected improvements
+- Generic user personas like "busy professional" or "first-time visitor"
+
+REQUIRED FOR EVERY INSIGHT:
+- Quote actual text you see on the site
+- Reference specific UI elements by their exact appearance/color/position
+- Name actual pages or sections you analyzed
+- Identify the real business model/industry from what you observe
+- Base persona on the actual target audience evident from content
+
 ## AUDIT FLOW REQUIREMENTS
 
 ### 1. Executive Summary
-- 1-2 sentences, business-facing language
-- High-level UX state (excellent/good/fair/poor/broken) tied to the site's primary business goal
-- Must be specific to THIS site's actual purpose and context
+- 1-2 sentences based ONLY on what you actually observed
+- High-level UX state tied to the site's actual primary business goal
+- Must reference specific elements or content from THIS site
 
 ### 2. Key Insights (Holistic Patterns)  
-- 2-3 "aha" insights that only emerge from analyzing the WHOLE experience
-- Focus on patterns that span multiple touchpoints
-- Example format: "Strong product visuals are undermined by inconsistent CTA copy across flows, creating doubt during checkout"
+- 2-3 insights that emerge from analyzing THIS specific experience
+- Quote actual text or describe specific visual elements as evidence
+- Focus on patterns you can prove exist across multiple pages/flows
 
 ### 3. Persona-Driven User Journey
-- Define ONE realistic persona specific to this site (not generic)
-- Walk through actual navigation path step-by-step
-- Each step format: action → issue(s) → improvement(s)
-- Must reflect real user friction for THIS specific experience
+- Define ONE realistic persona based on the actual content/industry you observe
+- Reference actual pages, buttons, forms, or content you can see
+- Each step must reference specific elements: actual button text, form fields, page titles
+- Issues must be observable problems, not theoretical ones
 
 ### 4. Heuristic Violations (Nielsen's 10)
-- Explicit mapping to specific heuristics
-- Format: "Heuristic Name → Specific element → Why it matters HERE"
-- Example: "Visibility of system status → Cart page shows no loading indicator, leaving users confused during checkout"
+- Reference specific elements you can actually see
+- Quote actual text or describe exact visual problems
+- Example: "Error Prevention → The contact form shows 'Required' labels only after submission attempt, not before"
 
 ### 5. Recommended Fixes (Prioritized)
-- 3-5 clear recommendations 
-- Each includes: priority (high/med/low) + business impact
-- Tied directly to issues found in THIS analysis
-
-## ANTI-TEMPLATE DIRECTIVE
-CRITICAL: Avoid all generic language. Your analysis must be demonstrably different from any other site audit by:
-- Quoting actual text from the site
-- Naming specific UI elements (buttons, colors, layouts)
-- Referencing actual navigation paths you tested
-- Identifying site-specific business goals and user needs
-
-## ANALYSIS APPROACH
-1. Identify the site's PRIMARY business goal and user intent
-2. Define a realistic persona based on the actual content/industry
-3. Navigate through key user flows (2-3 pages deep minimum)
-4. Document specific friction points with concrete evidence
-5. Map findings to Nielsen's heuristics with site-specific examples
-6. Prioritize fixes based on business impact for THIS specific context
+- Based ONLY on problems you actually identified
+- Reference specific elements that need changing
+- No business impact projections or conversion rate estimates
 
 ## EVIDENCE REQUIREMENTS
-Every issue must include:
-- Specific element/page where problem occurs
-- Actual text or visual elements as proof
-- Clear explanation of why it matters for THIS site's goals
-- Concrete recommendation that fits this context
+Every single finding must include:
+- Exact text you can read on the site (in quotes)
+- Specific UI element descriptions (button color, position, size)
+- Actual page names or URLs where you found the issue
+- Real business context derived from the site's actual content/purpose
+
+## ANALYSIS APPROACH
+1. First, determine what this website/app actually does from the content
+2. Identify the real target audience from the language, imagery, and features
+3. Navigate through actual user flows visible in the interface
+4. Document only observable problems with specific evidence
+5. Create persona based on who this site is clearly designed for
 
 ${(prompt.targetAudience || prompt.userGoals || prompt.businessObjectives) ? '## CONTEXT' : ''}
 ${prompt.targetAudience ? `- Target Audience: ${prompt.targetAudience}` : ''}
@@ -158,21 +164,21 @@ ${prompt.businessObjectives ? `- Business Objectives: ${prompt.businessObjective
 Respond ONLY with a JSON object matching this new Lemon Yellow audit structure:
 
 {
-  "executiveSummary": "1-2 sentences, business-facing. High-level UX state tied to this site's primary business goal.",
+  "executiveSummary": "1-2 sentences referencing specific elements or content you observed on this site. Must mention actual business model/purpose.",
   "confidence": 0.0,
   "keyInsights": [
-    "Holistic insight 1 that spans multiple touchpoints",
-    "Holistic insight 2 that emerges from whole experience analysis",
-    "Holistic insight 3 connecting patterns to business impact"
+    "Quote actual text or reference specific visual elements you observed",
+    "Describe specific patterns you found across actual pages/sections",
+    "Reference real navigation paths or user flows you analyzed"
   ],
   "personaDrivenJourney": {
-    "persona": "Specific persona relevant to THIS site (e.g., 'Marketing manager comparing SaaS tools')",
-    "personaReasoning": "Why this persona perfectly fits this specific site and industry",
+    "persona": "Specific persona based on actual target audience evident from site content (not generic)",
+    "personaReasoning": "Evidence from actual site content showing why this persona fits (reference specific text/features)",
     "steps": [
       {
-        "action": "Specific action taken on this site",
-        "issues": ["Specific friction point at this step"],
-        "improvements": ["Specific fix for this step"]
+        "action": "Specific action referencing actual page names, button text, or content you can see",
+        "issues": ["Observable problem with specific UI element or text you can quote"],
+        "improvements": ["Specific fix for actual element you identified"]
       }
     ],
     "overallExperience": "excellent|good|fair|poor|broken"
@@ -180,39 +186,49 @@ Respond ONLY with a JSON object matching this new Lemon Yellow audit structure:
   "heuristicViolations": [
     {
       "heuristic": "Specific Nielsen heuristic name",
-      "element": "Exact UI element or page section",
-      "violation": "What's wrong and why it matters for THIS site",
-      "businessImpact": "How this affects conversions/engagement for this business",
-      "evidence": "Quote actual text or describe specific visual element"
+      "element": "Exact UI element with specific description (color, position, text)",
+      "violation": "Observable problem you can see on this specific site",
+      "businessImpact": "Impact based on this site's actual business model (no fake percentages)",
+      "evidence": "Quote actual text in quotes or describe specific visual element in detail"
     }
   ],
   "prioritizedFixes": [
     {
-      "recommendation": "Clear, actionable fix",
+      "recommendation": "Specific fix referencing actual elements that need changing",
       "priority": "high|medium|low",
-      "businessImpact": "Expected improvement in conversions/engagement/retention",
+      "businessImpact": "Qualitative impact description (no percentage claims or conversion estimates)",
       "effort": "high|medium|low",
       "timeframe": "immediate|short-term|long-term"
     }
   ],
   "scores": {
-    "heuristics": { "score": 0.0, "maxScore": 5.0, "findings": "Site-specific heuristic assessment" },
-    "uxLaws": { "score": 0.0, "maxScore": 5.0, "findings": "Site-specific UX laws assessment" },
-    "copywriting": { "score": 0.0, "maxScore": 5.0, "findings": "Site-specific copywriting assessment" },
-    "accessibility": { "score": 0.0, "maxScore": 5.0, "findings": "Site-specific accessibility assessment" }
+    "heuristics": { "score": 0.0, "maxScore": 5.0, "findings": "Assessment based on specific heuristic violations you found with evidence" },
+    "uxLaws": { "score": 0.0, "maxScore": 5.0, "findings": "Assessment referencing specific UX law violations you observed" },
+    "copywriting": { "score": 0.0, "maxScore": 5.0, "findings": "Assessment of actual text and copy you read on the site" },
+    "accessibility": { "score": 0.0, "maxScore": 5.0, "findings": "Assessment based on accessibility issues you can observe" }
   },
   "analysisLog": {
-    "siteBusinessGoal": "Primary business objective identified for this site",
-    "navigationPath": ["/", "/actual-page", "/tested-flow"],
-    "keyObservations": ["Site-specific observation 1", "Site-specific observation 2"],
-    "testingApproach": "What flows and pages were analyzed"
+    "siteBusinessGoal": "Primary business objective you determined from actual site content and features",
+    "navigationPath": ["List actual pages/sections you analyzed - use real page names or URLs"],
+    "keyObservations": ["Specific observation 1 with quoted text or element descriptions", "Specific observation 2 with evidence"],
+    "testingApproach": "Describe what specific flows, pages, or elements you actually analyzed"
   }
 }
 
-Strict requirements:
-- Output must be valid JSON only (no markdown, no prose outside JSON)
-- Keep all strings concise and specific to ${isUrl ? `\`${prompt.url}\`` : 'this image'}
-- Do not invent pages you did not observe; if limited, be transparent in analysisLog
+FINAL VALIDATION CHECKLIST - Every response must pass:
+✓ Executive summary mentions specific site content or business model
+✓ Key insights quote actual text or reference specific visual elements  
+✓ Persona is based on evidence from the actual site (not generic)
+✓ User journey steps reference actual buttons, forms, or page elements
+✓ Heuristic violations quote specific text or describe exact visual problems
+✓ Recommendations reference specific elements that need changing
+✓ NO generic percentages, conversion claims, or competitive benchmarks
+✓ NO template language that could apply to any website
+
+Output requirements:
+- Valid JSON only (no markdown, no prose outside JSON)
+- All content specific to ${isUrl ? `\`${prompt.url}\`` : 'this image'}
+- If analysis is limited, be transparent in analysisLog about what you could/couldn't observe
 `;
 
     if (isUrl) {
@@ -329,6 +345,7 @@ Strict requirements:
     if (percentage >= 60) return 'D';
     return 'F';
   }
+
 
   private createDemoResponse(prompt: GeminiAnalysisPrompt): AuditData {
     // Create a realistic demo response when API fails
