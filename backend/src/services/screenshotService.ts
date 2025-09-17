@@ -42,15 +42,8 @@ export class ScreenshotService {
           timeout: 15000 // Reduced timeout
         });
 
-        // Try to wait for load event but don't fail if it times out
-        try {
-          await page.waitForFunction('document.readyState === "complete"', { timeout: 5000 });
-        } catch (loadError) {
-          console.log('Load state timeout, proceeding with screenshot');
-        }
-
         // Wait for any dynamic content but with shorter timeout
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 2000));
 
       } catch (navError) {
         console.log('Navigation timeout, trying with basic load');

@@ -1,6 +1,6 @@
-import React, { useMemo, useCallback } from 'react';
+import React from 'react';
 import { AuditData } from '../types';
-import { getRelevantCaseStudies } from '../data/caseStudies';
+import { getRelevantCaseStudies, caseStudies } from '../data/caseStudies';
 import html2pdf from 'html2pdf.js';
 
 interface AuditReportProps {
@@ -8,142 +8,15 @@ interface AuditReportProps {
 }
 
 export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
-  // Deduplication & phrasing helpers to keep sections distinctive
-  const normalizeText = (t: string) =>
-    t
-      .toLowerCase()
-      .replace(/\b(the|a|an|and|or|to|for|of|on|in|at|with|we|you|your|our)\b/g, ' ')
-      .replace(/[^a-z0-9\s]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
 
-  const getThemeId = useCallback((t: string) => {
-    const s = normalizeText(t);
-    if (/44px|tap|touch|click target|target size/.test(s)) return 'tap-target';
-    if (/(navigation|nav|menu).*(different|inconsistent|across pages|vary|behaviors)/.test(s)) return 'nav-consistency';
-    if (/contrast|low contrast/.test(s)) return 'contrast';
-    if (/form|validation|error|label/.test(s)) return 'forms';
-    if (/cta|call to action|primary action|button prominence/.test(s)) return 'cta';
-    if (/responsive|mobile|smaller screen|viewport/.test(s)) return 'responsive';
-    if (/copy|labeling|microcopy|ambiguous/.test(s)) return 'copy-clarity';
-    if (/hierarchy|information architecture|ia|findability|grouping/.test(s)) return 'ia-hierarchy';
-    if (/feedback|status|loading|progress|spinner/.test(s)) return 'feedback-status';
-    return s.split(' ').slice(0, 5).join('-');
-  }, []);
-
-  const themePhrases = useMemo((): Record<string, { overall: string; journey: string; heuristic: string }> => ({
-    'tap-target': {
-      overall: 'Standardize 44px+ tap targets across mobile to reduce misses.',
-      journey: 'Sub‑44px tap targets in critical flows lead to missed taps.',
-      heuristic: 'Tap targets below 44px reduce usability; increase to 44px+.'
-    },
-    'nav-consistency': {
-      overall: 'Unify navigation patterns (labels, placement, behavior) across pages.',
-      journey: 'Navigation changes between pages create disorientation in multi‑step tasks.',
-      heuristic: 'Breaks “Consistency & Standards”; align styles and interactions.'
-    },
-    contrast: {
-      overall: 'Raise text contrast to WCAG 2.2 AA (≥4.5:1) for readability.',
-      journey: 'Low‑contrast text slows scanning on key pages.',
-      heuristic: 'Contrast fails AA in components; adjust colors/weights.'
-    },
-    forms: {
-      overall: 'Harden forms: labels, inline validation, and helpful errors.',
-      journey: 'Missing labels/validation cause retries and drop‑off.',
-      heuristic: 'Violates error prevention/recognition; add labels and real‑time checks.'
-    },
-    cta: {
-      overall: 'Clarify primary actions with consistent, prominent CTA styling.',
-      journey: 'Ambiguous CTAs delay decisions in key steps.',
-      heuristic: 'Weak hierarchy; strengthen CTA prominence and state feedback.'
-    },
-    responsive: {
-      overall: 'Fix responsive breakpoints; ensure components adapt at sm/md.',
-      journey: 'On mobile, cramped UI and shifts slow task completion.',
-      heuristic: 'Improve flexibility/efficiency with mobile‑first patterns.'
-    },
-    'copy-clarity': {
-      overall: 'Tighten copy and labels to cut ambiguity and cognitive load.',
-      journey: 'Vague labels force rereads during flows.',
-      heuristic: 'Match between system and real world: use plain language.'
-    },
-    'ia-hierarchy': {
-      overall: 'Strengthen information hierarchy and IA for scanability and findability.',
-      journey: 'Weak hierarchy hides key info at decision points.',
-      heuristic: 'Favor recognition over recall: group and label clearly.'
-    },
-    'feedback-status': {
-      overall: 'Add timely, clear feedback for async actions and long tasks.',
-      journey: 'Missing progress cues create uncertainty during waits.',
-      heuristic: 'Visibility of system status: surface loading/progress states.'
-    }
-  }), []);
-
-  const rewriteForContext = useCallback((
-    raw: string,
-    context: 'overall' | 'journey' | 'heuristic',
-    heuristicName?: string
-  ) => {
-    const theme = getThemeId(raw);
-    const map = themePhrases[theme];
-    if (map) {
-      if (context === 'heuristic' && heuristicName) {
-        return `${map.heuristic} (${heuristicName}).`;
-      }
-      return map[context];
-    }
-    const base = raw.replace(/\s+/g, ' ').trim().replace(/\.$/, '');
-    if (context === 'overall') return `Elevate: ${base}.`;
-    if (context === 'journey') return `In‑flow impact: ${base}.`;
-    return `Guideline gap: ${base}.`;
-  }, [getThemeId, themePhrases]);
-
-  const uniqueByTheme = useCallback((items: { text: string; extra?: any }[], seen: Set<string>) => {
-    const out: { text: string; theme: string; extra?: any }[] = [];
-    for (const it of items) {
-      const theme = getThemeId(it.text);
-      if (seen.has(theme)) continue;
-      seen.add(theme);
-      out.push({ text: it.text, theme, extra: it.extra });
-      if (seen.size > 64) break;
-    }
-    return out;
-  }, [getThemeId]);
-
-  const { overallPoints, heuristicItems, filteredFixes } = useMemo(() => {
-    const seen = new Set<string>();
-
-    // Overall points from recommendations; backfill from issues if sparse
-    const overallPool = (data.recommendations || []).map((r) => ({ text: r }));
-    const overall = uniqueByTheme(overallPool, seen).slice(0, 4);
-
-    // Heuristics points from heuristic issues
-    const heurPool = data.issues
-      .filter((i) => i.category === 'heuristics')
-      .map((i) => ({ text: i.description || i.title, extra: { heuristic: i.heuristic } }));
-    const heur = uniqueByTheme(heurPool, seen).slice(0, 5);
-
-    // Filter fixes to avoid repetition by theme
-    const usedThemes = new Set([
-      ...overall.map((o) => o.theme),
-      ...heur.map((h) => h.theme)
-    ]);
-    const fixes = data.issues
-      .filter((i) => {
-        const key = getThemeId(`${i.title || ''} ${i.description || ''} ${i.recommendation || ''}`);
-        return !usedThemes.has(key);
-      })
-      .slice(0, 6);
-
-    return {
-      overallPoints: overall.map((o) => rewriteForContext(o.text, 'overall')),
-      heuristicItems: heur.map((h) => ({
-        text: rewriteForContext(h.text, 'heuristic'),
-        label: h.extra?.heuristic || undefined
-      })),
-      filteredFixes: fixes
-    };
-  }, [data, getThemeId, rewriteForContext, uniqueByTheme]);
+  // Use contextual key insights from Gemini AI analysis
+  const getKeyInsights = () => {
+    // Use keyInsights which are contextual and URL-specific from Gemini
+    const keyInsights = data.keyInsights || [];
+    // Only return non-empty insights
+    return keyInsights
+      .filter(insight => insight && insight.trim() !== '');
+  };
   // Get platform name from URL or use default
   const getPlatformName = () => {
     if (data.url) {
@@ -158,54 +31,103 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
   };
 
 
-  // Get relevant case studies using smart matching
+  // Get relevant case studies using smart matching - always show at least 2
   const getRelevantCaseStudiesForAudit = () => {
-    return getRelevantCaseStudies(data.url, data.summary, 2);
+    const relevantStudies = getRelevantCaseStudies(data.url, data.summary, 2);
+    // If no relevant studies found, show high-priority general studies
+    if (relevantStudies.length === 0) {
+      return caseStudies
+        .filter(study => study.priority >= 8) // High-priority studies only
+        .sort((a, b) => b.priority - a.priority)
+        .slice(0, 2);
+    }
+    return relevantStudies;
   };
 
-  // Get heuristic points (prefer deduped from issues; fallback to backend heuristicViolations)
+  // Get heuristic violations from real AI analysis only
   const getHeuristicViolations = () => {
-    if (heuristicItems && heuristicItems.length > 0) {
-      return heuristicItems.map((h, idx) => ({ id: `h-${idx}`, title: h.text, heuristic: h.label, category: 'heuristics' } as any));
-    }
-    const hv = (data as any).heuristicViolations || [];
-    if (Array.isArray(hv) && hv.length > 0) {
-      return hv.map((v: any, idx: number) => ({
-        id: `hv-${idx}`,
-        title: v.violation || v.issue || v.heuristic || 'Heuristic issue',
-        description: v.violation || v.issue || '',
-        heuristic: v.heuristic,
-        element: v.element,
-        category: 'heuristics'
-      }));
-    }
-    return [] as any[];
+    // Only use real heuristic violations from AI analysis - no fallbacks
+    const heuristicIssues = data.issues?.filter(i => i.category === 'heuristics') || [];
+    const backendHeuristics = (data as any).heuristicViolations || [];
+    
+    const violations = [...heuristicIssues, ...backendHeuristics];
+    
+    // Only return if we have actual AI-generated violations
+    if (violations.length === 0) return [];
+    
+    // Remove duplicates and create concise violations
+    const uniqueViolations = new Map();
+    
+    violations.forEach((v: any) => {
+      const title = v.title || v.violation || v.issue || v.description;
+      const cleanTitle = title?.trim();
+      
+      if (cleanTitle && !uniqueViolations.has(cleanTitle)) {
+        // Keep description as generated by AI (already concise from updated prompts)
+        let description = v.description || v.violation || v.issue || '';
+        
+        uniqueViolations.set(cleanTitle, {
+          id: `hv-${uniqueViolations.size}`,
+          title: cleanTitle,
+          description: description,
+          heuristic: v.heuristic,
+          element: v.element,
+          category: 'heuristics'
+        });
+      }
+    });
+    
+    return Array.from(uniqueViolations.values());
   };
 
-  // Get recommended fixes (prefer deduped issues; fallback to prioritizedFixes from backend)
+  // Get recommended fixes from real AI analysis only
   const getRecommendedFixes = () => {
-    if (filteredFixes && filteredFixes.length > 0) return filteredFixes;
-    const pf = (data as any).prioritizedFixes || [];
-    if (Array.isArray(pf) && pf.length > 0) {
-      return pf.map((f: any, idx: number) => ({
-        id: `pf-${idx}`,
-        title: f.recommendation || 'Recommendation',
-        recommendation: f.recommendation || '',
-        severity: f.priority === 'high' ? 'major' : 'minor',
-        category: 'recommendation'
-      }));
-    }
-    return [] as any[];
+    // Get fixes from data.issues that have recommendations
+    const issueBasedFixes = data.issues?.filter(i => i.recommendation && i.recommendation.trim() !== '') || [];
+    
+    // Get fixes from backend prioritizedFixes - only from Gemini
+    const backendFixes = (data as any).prioritizedFixes || [];
+    
+    const allFixes = [
+      ...issueBasedFixes.map((issue, idx) => ({
+        id: `issue-${idx}`,
+        title: issue.title || '',
+        recommendation: issue.recommendation || '',
+        severity: issue.severity,
+        category: issue.category,
+        priority: (issue as any).priority,
+        effort: (issue as any).effort,
+        businessImpact: (issue as any).businessImpact,
+        timeframe: (issue as any).timeframe
+      })),
+      ...backendFixes.filter((f: any) => f.recommendation && f.recommendation.trim() !== '').map((f: any, idx: number) => ({
+        id: `backend-${idx}`,
+        title: f.title || `Fix ${idx + 1}`,
+        recommendation: f.recommendation,
+        priority: f.priority,
+        effort: f.effort,
+        businessImpact: f.businessImpact,
+        timeframe: f.timeframe,
+        category: f.category,
+        severity: f.priority === 'high' ? 'critical' : f.priority === 'medium' ? 'major' : 'minor'
+      }))
+    ];
+    
+    // Sort by priority: high -> medium -> low
+    const priorityOrder = { 'high': 3, 'medium': 2, 'low': 1 };
+    allFixes.sort((a, b) => {
+      const aPriority = priorityOrder[a.priority as keyof typeof priorityOrder] || 0;
+      const bPriority = priorityOrder[b.priority as keyof typeof priorityOrder] || 0;
+      return bPriority - aPriority;
+    });
+    
+    // Only return real fixes with actual content
+    return allFixes.filter(fix => fix.title && fix.title.trim() !== '' && fix.recommendation && fix.recommendation.trim() !== '');
   };
 
   // Journey points (persona-driven, no static fallbacks)
   const personaJourney = data.personaDrivenJourney;
   const scenarioPersona = personaJourney?.persona || '';
-  const scenarioGoal = useMemo(() => {
-    if (personaJourney?.personaReasoning) return personaJourney.personaReasoning;
-    const first = personaJourney?.steps?.[0]?.action;
-    return first ? first : '';
-  }, [personaJourney]);
 
   const getCurrentExperience = () => {
     if (!personaJourney || !personaJourney.steps?.length) return [] as string[];
@@ -226,8 +148,11 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
     return pts.slice(0, 3);
   };
 
-  // Category metrics (out of 5) synced to AI scores
+  // Category metrics (out of 5) synced to AI scores - only show if AI has generated scores
   const getCategoryScores = () => {
+    const scores = (data as any).scores;
+    if (!scores) return []; // No scores from AI, don't show anything
+    
     const norm = (cat: any): number => {
       if (!cat) return 0;
       if (typeof cat.score === 'number' && typeof cat.maxScore === 'number' && cat.maxScore > 0) {
@@ -239,17 +164,13 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
       return 0;
     };
 
-    const heuristics = norm((data as any).scores?.heuristics);
-    const usability = norm((data as any).scores?.uxLaws);
-    const accessibility = norm((data as any).scores?.accessibility);
-    const conversion = norm((data as any).scores?.copywriting);
+    const categories = [];
+    if (scores.heuristics) categories.push({ label: 'Heuristics', score: norm(scores.heuristics) });
+    if (scores.uxLaws) categories.push({ label: 'Usability', score: norm(scores.uxLaws) });
+    if (scores.accessibility) categories.push({ label: 'Accessibility', score: norm(scores.accessibility) });
+    if (scores.copywriting) categories.push({ label: 'Conversion', score: norm(scores.copywriting) });
 
-    return [
-      { label: 'Heuristics', score: heuristics },
-      { label: 'Usability', score: usability },
-      { label: 'Accessibility', score: accessibility },
-      { label: 'Conversion', score: conversion }
-    ];
+    return categories;
   };
 
   const handleDownloadPDF = () => {
@@ -316,7 +237,8 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
         <div className="flex justify-end gap-3 mb-8 action-buttons-banner">
           <button
             onClick={handleDownloadPDF}
-            className="flex items-center gap-2 px-6 py-3 bg-gray-900 text-white rounded-xl font-medium hover:bg-gray-800 active:bg-black transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
+            className="flex items-center gap-2 px-6 py-3 bg-gray-900 text-white rounded-xl font-medium hover:bg-gray-800 active:bg-black transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
+            style={{fontSize: '16px', lineHeight: '1.5'}}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 16L7 11L8.4 9.6L11 12.2V4H13V12.2L15.6 9.6L17 11L12 16Z" fill="currentColor"/>
@@ -326,7 +248,8 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
           </button>
           <button
             onClick={handleNewAudit}
-            className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-gray-900 text-gray-900 rounded-xl font-medium hover:bg-gray-50 active:bg-gray-100 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
+            className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-gray-900 text-gray-900 rounded-xl font-medium hover:bg-gray-50 active:bg-gray-100 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
+            style={{fontSize: '16px', lineHeight: '1.5'}}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 4L12 20M4 12L20 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
@@ -371,13 +294,24 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
           </div>
 
           {/* Title */}
-          <h1 className="text-4xl font-bold text-black mb-8">
-            Audit Breakdown
+          <h1 className="text-4xl font-bold text-black mb-4">
+            UX Audit Report
           </h1>
+          <div className="mb-8">
+            <p className="text-sm text-black/70">
+              Audited: {new Date(data.timestamp).toLocaleDateString('en-US', { 
+                year: 'numeric',
+                month: 'long', 
+                day: 'numeric' 
+              })}
+            </p>
+          </div>
 
-          {/* Metrics Row - Updated Layout with Bottom Labels */}
+          {/* Metrics Row - Only show if AI has generated scores */}
+          {((data as any).scores?.overall || getCategoryScores().length > 0) && (
           <div className="flex justify-between items-end">
-            {/* Overall Score */}
+            {/* Overall Score - Only show if available */}
+            {(data as any).scores?.overall && (
             <div className="flex flex-col items-center text-center">
               <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center text-3xl font-bold text-black shadow-lg mb-3">
                 {(() => {
@@ -392,9 +326,11 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
                 Overall UX Score
               </div>
             </div>
+            )}
 
-            {/* Key Metrics Grid */}
-            <div className="grid grid-cols-4 gap-4">
+            {/* Key Metrics Grid - Only show if we have category scores */}
+            {getCategoryScores().length > 0 && (
+            <div className={`grid gap-4 ${getCategoryScores().length <= 2 ? 'grid-cols-2' : getCategoryScores().length === 3 ? 'grid-cols-3' : 'grid-cols-4'}`}>
               {getCategoryScores().map((category, i) => (
                 <div key={i} className="flex flex-col items-center text-center">
                   <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center text-lg font-semibold text-black mb-3 shadow-lg">
@@ -406,20 +342,15 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
                 </div>
               ))}
             </div>
+            )}
           </div>
+          )}
         </div>
 
         {/* Company Name Section */}
         <div className="py-8 md:py-10 max-w-[1140px] mx-auto px-4 md:px-6 -mx-6">
           <div className="text-left">
-            <div className="text-sm text-gray-500 mb-2">
-              Published on: {new Date(data.timestamp).toLocaleDateString('en-US', { 
-                year: 'numeric',
-                month: 'long', 
-                day: 'numeric' 
-              })}
-            </div>
-            <h2 className="text-[28px] md:text-[34px] font-semibold tracking-[-0.01em] mt-2">
+            <h2 className="text-[28px] md:text-[34px] font-semibold tracking-[-0.01em]">
               {data.url ? (
                 (() => {
                   try {
@@ -427,10 +358,10 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
                     const domain = url.hostname.replace('www.', '').split('.')[0];
                     return domain.charAt(0).toUpperCase() + domain.slice(1);
                   } catch {
-                    return 'Company Name';
+                    return 'Website Analysis';
                   }
                 })()
-              ) : 'Company Name'}
+              ) : 'Website Analysis'}
             </h2>
             <div className="max-w-[70ch] mt-3">
               <p className="text-[15px] md:text-base text-gray-700 leading-relaxed">
@@ -440,18 +371,21 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
           </div>
         </div>
 
-        {/* Overall Insights Section - render only if recommendations present */}
-        {overallPoints.length > 0 && (
+
+
+
+        {/* Key Insights Section - Only show contextual AI insights */}
+        {getKeyInsights().length > 0 && (
         <div className="py-8 md:py-10 max-w-[1140px] mx-auto px-4 md:px-6 -mx-6">
           <div className="text-left">
-            <h2 className="text-[28px] md:text-[34px] font-semibold tracking-[-0.01em]">Overall Insights</h2>
-            <p className="font-medium text-gray-800 mt-2">The deep, non-obvious findings about the user experience.</p>
+            <h2 className="text-[28px] md:text-[34px] font-semibold tracking-[-0.01em]">Key Insights</h2>
+            <p className="font-medium text-gray-800 mt-2 leading-relaxed" style={{lineHeight: '1.6'}}>Key findings and opportunities identified through AI analysis.</p>
           </div>
-          <ul className="mt-4 space-y-2">
-            {overallPoints.map((point, index) => (
+          <ul className="mt-4 space-y-3">
+            {getKeyInsights().map((insight, index) => (
               <li key={index} className="flex items-start max-w-[70ch]">
-                <span className="h-1.5 w-1.5 rounded-full bg-yellow-400 mt-2 mr-3"></span>
-                <span className="text-[15px] md:text-base text-gray-700 leading-relaxed">{point}</span>
+                <span className="h-2 w-2 rounded-full bg-gray-400 mt-3 mr-4 flex-shrink-0"></span>
+                <span className="text-gray-700 leading-relaxed" style={{fontSize: '16px', lineHeight: '1.6'}}>{insight}</span>
               </li>
             ))}
           </ul>
@@ -493,7 +427,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
         <div className="py-8 md:py-10 max-w-[1140px] mx-auto px-4 md:px-6 -mx-6">
           <div className="text-left">
             <h2 className="text-[28px] md:text-[34px] font-semibold tracking-[-0.01em]">User Journey Map</h2>
-            <p className="font-medium text-gray-800 mt-2">Persona‑based pathway derived from AI analysis.</p>
+            <p className="font-medium text-gray-800 mt-2">AI-identified user experience pathway.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
             {/* Current Experience Card */}
@@ -503,12 +437,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
                 <p className="text-sm text-gray-600 italic">
                   {scenarioPersona && (
                     <>
-                      Persona: <span className="font-medium">{scenarioPersona}</span>.{' '}
-                    </>
-                  )}
-                  {scenarioGoal && (
-                    <>
-                      Scenario: <span className="font-medium">{scenarioPersona || 'User'} wants to {scenarioGoal}</span>.
+                      Persona: <span className="font-medium">{scenarioPersona}</span>
                     </>
                   )}
                 </p>
@@ -516,7 +445,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
               <div className="space-y-4">
                 {getCurrentExperience().slice(0, 3).map((experience, index) => (
                   <div key={index} className="flex gap-3 p-2 rounded-xl hover:bg-neutral-50 transition">
-                    <div className="w-6 h-6 bg-yellow-400 rounded-full grid place-items-center flex-shrink-0">
+                    <div className="w-6 h-6 bg-gray-900 text-white rounded-full grid place-items-center flex-shrink-0">
                       <span className="text-sm font-bold">{index + 1}</span>
                     </div>
                     <div>
@@ -536,7 +465,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
               <div className="space-y-4">
                 {getOptimizedExperience().slice(0, 3).map((experience, index) => (
                   <div key={index} className="flex gap-3 p-2 rounded-xl hover:bg-neutral-50 transition">
-                    <div className="w-6 h-6 bg-yellow-400 rounded-full grid place-items-center flex-shrink-0">
+                    <div className="w-6 h-6 bg-gray-900 text-white rounded-full grid place-items-center flex-shrink-0">
                       <span className="text-sm font-bold">{index + 1}</span>
                     </div>
                     <div>
@@ -551,101 +480,120 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
         </div>
         )}
 
-        {/* Heuristic Violations Section - left aligned */}
+        {/* Heuristic Violations Section - Only show if there are violations */}
+        {getHeuristicViolations().length > 0 && (
         <div className="py-8 md:py-10 max-w-[1140px] mx-auto px-4 md:px-6 -mx-6">
           <div className="text-left">
             <h2 className="text-[28px] md:text-[34px] font-semibold tracking-[-0.01em]">Heuristic Violations</h2>
             <p className="font-medium text-gray-800 mt-2">Identified issues based on Nielsen's 10 Usability Heuristics.</p>
           </div>
-          <div className="space-y-2 mt-6">
-            {getHeuristicViolations().length > 0 ? (
-              getHeuristicViolations().map((violation, index) => (
-                <div key={violation.id} className="flex gap-3 items-start p-3 rounded-xl hover:bg-neutral-50 transition">
-                  <div className="h-6 w-6 rounded-full bg-yellow-400 text-[12px] font-semibold grid place-items-center mt-0.5">
+          <div className="space-y-4 mt-6">
+            {getHeuristicViolations().map((violation, index) => (
+              <div key={violation.id} className="bg-white rounded-xl border border-gray-200 p-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-8 h-8 rounded-full bg-gray-900 text-white text-sm font-bold flex items-center justify-center flex-shrink-0">
                     {index + 1}
                   </div>
                   <div className="flex-1">
-                    <div className="flex items-start gap-2 flex-wrap">
-                      <h4 className="font-semibold text-[#111]">{violation.title}</h4>
-                      {violation.heuristic && (
-                        <span className="text-[11px] px-2 py-1 rounded-full bg-neutral-100 border border-neutral-300 text-neutral-800">
+                    <h4 className="font-semibold text-gray-900 text-lg mb-2">{violation.title}</h4>
+                    {violation.heuristic && (
+                      <div className="mb-3">
+                        <span className="text-xs px-3 py-1 rounded-full bg-blue-50 text-blue-700 font-medium">
                           {violation.heuristic}
                         </span>
-                      )}
-                    </div>
-                    {violation.description && (
-                      <p className="text-sm text-gray-600 mt-1">{violation.description}</p>
+                      </div>
                     )}
                     {violation.element && (
-                      <div className="text-xs mt-1 px-2 py-1 bg-gray-200 rounded inline-block">
-                        Element: {violation.element}
+                      <div className="mb-3 p-3 bg-gray-50 rounded-lg">
+                        <span className="text-sm font-medium text-gray-600">Element: </span>
+                        <span className="text-sm text-gray-800">{violation.element}</span>
                       </div>
                     )}
                   </div>
                 </div>
-              ))
-            ) : (
-              <div className="flex gap-3 items-start p-3 rounded-xl hover:bg-neutral-50 transition">
-                <div className="h-6 w-6 rounded-full bg-green-400 text-[12px] font-semibold grid place-items-center mt-0.5">
-                  ✓
-                </div>
-                <div>
-                  <h4 className="font-semibold">No major heuristic violations detected</h4>
-                  <p className="text-sm text-gray-600">The interface generally follows usability principles.</p>
-                </div>
               </div>
-            )}
+            ))}
           </div>
         </div>
+        )}
 
-        {/* Recommended Fixes Section - left aligned */}
+        {/* Recommended Fixes Section - Only show if there are fixes */}
+        {getRecommendedFixes().length > 0 && (
         <div className="py-8 md:py-10 max-w-[1140px] mx-auto px-4 md:px-6 -mx-6">
           <div>
             <div className="text-left">
               <h2 className="text-[28px] md:text-[34px] font-semibold tracking-[-0.01em]">Recommended Fixes</h2>
-              <p className="font-medium text-gray-800 mt-2">Quick wins and structural improvements.</p>
+              <p className="font-medium text-gray-800 mt-2">Actionable solutions prioritized by impact and effort.</p>
             </div>
-            <div className="space-y-2 mt-6">
-              {getRecommendedFixes().map((fix) => (
-                <div key={fix.id} className="flex gap-3 items-start p-3 rounded-xl hover:bg-neutral-50 transition">
-                  <div className="h-6 w-6 rounded-full bg-yellow-400 grid place-items-center mt-0.5">
-                    <span className="text-[14px] font-semibold">✓</span>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold">{fix.title}</h4>
-                    <p className="text-sm text-gray-600">{fix.recommendation}</p>
-                    {(fix.severity || fix.category) && (
-                      <div className="flex gap-2 mt-2">
-                        {fix.severity && (
-                          <span className={`text-xs px-2 py-1 rounded ${
-                            fix.severity === 'critical' ? 'bg-red-100 text-red-700' :
-                            fix.severity === 'major' ? 'bg-orange-100 text-orange-700' : 
-                            'bg-yellow-100 text-yellow-700'
-                          }`}>
-                            {fix.severity === 'critical' ? 'Critical' : 
-                             fix.severity === 'major' ? 'High Priority' : 'Medium Priority'}
-                          </span>
-                        )}
-                        {fix.category && (
+            <div className="space-y-4 mt-6">
+              {getRecommendedFixes().map((fix, index) => (
+                <div key={fix.id} className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-sm transition-shadow">
+                  <div className="flex items-start gap-4">
+                    <div className="w-8 h-8 rounded-full bg-gray-900 text-white text-sm font-bold flex items-center justify-center flex-shrink-0">
+                      {index + 1}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-start justify-between gap-4 mb-3">
+                        <div className="flex gap-2 flex-shrink-0">
+                          {(fix.priority || fix.severity) && (
+                            <span className={`text-xs px-3 py-1 rounded-full font-medium ${
+                              fix.priority === 'high' || fix.severity === 'critical' ? 'bg-red-100 text-red-700' :
+                              fix.priority === 'medium' || fix.severity === 'major' ? 'bg-orange-100 text-orange-700' : 
+                              'bg-yellow-100 text-yellow-700'
+                            }`}>
+                              {fix.priority === 'high' || fix.severity === 'critical' ? 'High Priority' : 
+                               fix.priority === 'medium' || fix.severity === 'major' ? 'Medium Priority' : 'Low Priority'}
+                            </span>
+                          )}
+                          {fix.effort && (
+                            <span className={`text-xs px-3 py-1 rounded-full font-medium ${
+                              fix.effort === 'high' ? 'bg-gray-100 text-gray-700' :
+                              fix.effort === 'medium' ? 'bg-blue-100 text-blue-700' : 
+                              'bg-green-100 text-green-700'
+                            }`}>
+                              {fix.effort === 'high' ? 'High Effort' : 
+                               fix.effort === 'medium' ? 'Medium Effort' : 'Low Effort'}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-gray-700 mb-3 leading-relaxed">{fix.recommendation}</p>
+                      
+                      {/* Impact section with grey background - similar to heuristic violations */}
+                      {fix.businessImpact && (
+                        <div className="mb-3 p-3 bg-gray-50 rounded-lg">
+                          <span className="text-sm font-medium text-gray-600">Impact: </span>
+                          <span className="text-sm text-gray-800">{fix.businessImpact}</span>
+                        </div>
+                      )}
+                      
+                      {/* Category type if available */}
+                      {fix.category && (
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-gray-600 text-sm">Type:</span>
                           <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded">
                             {fix.category}
                           </span>
-                        )}
-                      </div>
-                    )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
           </div>
         </div>
+        )}
 
-        {/* Work Samples Section - left aligned */}
+        {/* Relevant Case Studies Section - Always show */}
         <div className="py-8 md:py-10 max-w-[1140px] mx-auto px-4 md:px-6 -mx-6">
-          <h2 className="text-[28px] md:text-[34px] font-semibold tracking-[-0.01em] mb-6" style={{color: '#19213d'}}>
+          <h2 className="text-[28px] md:text-[34px] font-semibold tracking-[-0.01em] mb-2" style={{color: '#19213d'}}>
             Relevant Case Studies
           </h2>
-          <div className="grid grid-cols-2 gap-6">
+          <p className="font-medium text-gray-800 mb-6 leading-relaxed">
+            Similar projects from our portfolio that showcase relevant design solutions and approaches.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {getRelevantCaseStudiesForAudit().map((caseStudy) => (
               <a
                 key={caseStudy.id}
@@ -656,17 +604,24 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
               >
                 <div className="h-full flex flex-col justify-between">
                   <div>
-                    <h4 className="text-lg font-semibold mb-3 text-gray-900 group-hover:text-gray-700 transition-colors">
-                      {caseStudy.title}
-                    </h4>
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <h4 className="text-lg font-semibold text-gray-900 group-hover:text-gray-700 transition-colors flex-1">
+                        {caseStudy.title}
+                      </h4>
+                      <span className="text-xs px-3 py-1 bg-blue-50 text-blue-700 rounded-full font-medium flex-shrink-0">
+                        {caseStudy.industry.replace('-', ' ').charAt(0).toUpperCase() + caseStudy.industry.replace('-', ' ').slice(1)}
+                      </span>
+                    </div>
                     <p className="text-sm text-gray-600 leading-relaxed mb-4">
                       {caseStudy.description}
                     </p>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs px-3 py-1 bg-gray-100 text-gray-700 rounded-full font-medium">
-                      {caseStudy.industry.charAt(0).toUpperCase() + caseStudy.industry.slice(1)}
-                    </span>
+                  <div className="flex items-center justify-between pt-2">
+                    <div className="flex gap-2">
+                      <span className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded">
+                        UX Design
+                      </span>
+                    </div>
                     <span className="text-sm text-blue-600 group-hover:text-blue-700 font-medium transition-colors">
                       View Case Study →
                     </span>
@@ -681,7 +636,8 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
         <div className="flex justify-center mt-12 mb-8">
           <button
             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-            className="flex items-center gap-2 px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-gray-900 rounded-full font-medium transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
+            className="flex items-center gap-2 px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-gray-900 rounded-full font-medium transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
+            style={{fontSize: '16px', lineHeight: '1.5'}}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 8L7 13L8.4 14.4L11 11.8V20H13V11.8L15.6 14.4L17 13L12 8Z" fill="currentColor"/>
@@ -690,6 +646,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
             Back to Top
           </button>
         </div>
+
 
         </div> {/* End PDF Content Wrapper */}
         </div>
