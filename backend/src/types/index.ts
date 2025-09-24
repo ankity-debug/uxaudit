@@ -145,7 +145,7 @@ export interface PageAnalysis {
 export interface GeminiAnalysisPrompt {
   imageBase64?: string;
   url?: string;
-  analysisType: 'screenshot' | 'url' | 'multi_page';
+  analysisType: 'screenshot' | 'url' | 'multi_page' | 'contextual';
   pages?: PageAnalysis[]; // For multi-page analysis
   domStructure?: string; // Structured DOM information
   accessibilityTree?: string;

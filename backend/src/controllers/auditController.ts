@@ -1,11 +1,13 @@
 import { Request, Response } from 'express';
 import { OpenRouterService } from '../services/openRouterService';
 import { ScreenshotService } from '../services/screenshotService';
+import { ContextualAuditService } from '../services/contextualAuditService';
 import { AuditData } from '../types';
 
 export class AuditController {
   private openRouterService: OpenRouterService;
   private screenshotService: ScreenshotService;
+  private contextualAuditService: ContextualAuditService;
 
   constructor() {
     // Use the OpenRouter API key from environment variables
@@ -16,6 +18,7 @@ export class AuditController {
 
     this.openRouterService = new OpenRouterService(apiKey);
     this.screenshotService = new ScreenshotService();
+    this.contextualAuditService = new ContextualAuditService(apiKey);
   }
 
   auditWebsite = async (req: Request, res: Response): Promise<void> => {
@@ -81,27 +84,44 @@ export class AuditController {
         }
       }
 
-      // Perform UX analysis with OpenRouter
+      // Perform enhanced contextual UX analysis
       try {
-        const auditResult: AuditData = await this.openRouterService.analyzeUX({
-          imageBase64,
-          url: auditUrl,
-          analysisType: type === 'url' ? 'url' : 'screenshot',
-          targetAudience,
-          userGoals,
-          businessObjectives
-        });
+        let auditResult: AuditData;
 
-        // Add screenshot data to the response
-        if (imageBase64) {
-          auditResult.imageUrl = `data:image/jpeg;base64,${imageBase64}`;
+        if (type === 'url' && auditUrl) {
+          // Use contextual analysis for URL audits (sitemap + HTML + visual)
+          console.log('Performing contextual analysis...');
+          auditResult = await this.contextualAuditService.performContextualAudit({
+            imageBase64,
+            url: auditUrl,
+            analysisType: 'contextual',
+            targetAudience,
+            userGoals,
+            businessObjectives
+          });
+        } else {
+          // Use standard analysis for image uploads
+          console.log('Performing standard analysis...');
+          auditResult = await this.openRouterService.analyzeUX({
+            imageBase64,
+            url: auditUrl,
+            analysisType: type === 'url' ? 'url' : 'screenshot',
+            targetAudience,
+            userGoals,
+            businessObjectives
+          });
+
+          // Add screenshot data to the response
+          if (imageBase64) {
+            auditResult.imageUrl = `data:image/jpeg;base64,${imageBase64}`;
+          }
         }
 
         res.json(auditResult);
       } catch (analysisError: any) {
         console.error('Analysis error:', analysisError);
         const reason = analysisError?.message || 'Failed to complete UX analysis';
-        res.status(500).json({ 
+        res.status(500).json({
           error: 'Audit failed',
           message: reason
         });

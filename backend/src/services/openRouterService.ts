@@ -86,6 +86,69 @@ export class OpenRouterService {
     }
   }
 
+  async analyzeWithContext(contextualPrompt: string, imageBase64?: string): Promise<AuditData> {
+    const model = 'x-ai/grok-4-fast:free';
+
+    try {
+      const makeMessages = (withImage: boolean) => ([
+        {
+          role: 'user',
+          content: withImage && imageBase64 ? [
+            { type: 'text', text: contextualPrompt },
+            { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imageBase64}` } }
+          ] : contextualPrompt
+        } as any
+      ]);
+
+      const doRequest = async (withImage: boolean) => {
+        return axios.post(this.baseURL, {
+          model: model,
+          messages: makeMessages(withImage),
+          temperature: 0.1,
+          max_tokens: 4096
+        }, {
+          headers: {
+            'Authorization': `Bearer ${this.apiKey}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': 'https://lemonyellow.design',
+            'X-Title': 'LimeMind UX Audit Tool'
+          },
+          timeout: 35000 // Slightly longer for contextual analysis
+        });
+      };
+
+      let response;
+      try {
+        response = await doRequest(true);
+      } catch (e: any) {
+        // If model rejects images, retry text-only once for this model
+        const status = e?.response?.status;
+        const msg = e?.response?.data?.error?.message || e?.message || '';
+        const imageUnsupported = /image input|image not supported|no endpoints.*image/i.test(msg);
+        if (imageBase64 && (status === 400 || status === 404 || status === 415 || imageUnsupported)) {
+          response = await doRequest(false);
+        } else {
+          throw e;
+        }
+      }
+
+      // Provider-level error sometimes arrives in body with 200
+      if (response?.data?.error) {
+        const code = response.data.error.code || 500;
+        throw { response: { status: code, data: response.data } };
+      }
+
+      const analysisText = response.data.choices?.[0]?.message?.content || response.data.choices?.[0]?.message;
+      console.log('Raw contextual AI response (first 500 chars):', analysisText?.substring(0, 500));
+      const parsedJson = this.extractJsonFromResponse(analysisText);
+      return this.parseOpenRouterResponse(parsedJson, { url: 'contextual', analysisType: 'contextual' }, model);
+
+    } catch (error: any) {
+      console.error(`Contextual OpenRouter API error with ${model}:`, error.response?.data || error.message);
+      throw new Error(`Contextual AI analysis failed: ${error.response?.data?.error || error.message || 'Unknown analysis error'}`);
+    }
+  }
+
   private buildAnalysisPrompt(prompt: GeminiAnalysisPrompt): string {
     const subject = prompt.url || "the uploaded image";
 
