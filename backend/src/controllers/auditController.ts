@@ -1,10 +1,10 @@
 import { Request, Response } from 'express';
-import { GeminiService } from '../services/geminiService';
+import { OpenRouterService } from '../services/openRouterService';
 import { ScreenshotService } from '../services/screenshotService';
 import { AuditData } from '../types';
 
 export class AuditController {
-  private geminiService: GeminiService;
+  private openRouterService: OpenRouterService;
   private screenshotService: ScreenshotService;
 
   constructor() {
@@ -13,8 +13,8 @@ export class AuditController {
     if (!apiKey) {
       throw new Error('OPENROUTER_API_KEY environment variable is required');
     }
-    
-    this.geminiService = new GeminiService(apiKey);
+
+    this.openRouterService = new OpenRouterService(apiKey);
     this.screenshotService = new ScreenshotService();
   }
 
@@ -46,10 +46,18 @@ export class AuditController {
         }
 
         auditUrl = url;
-        
-        // Skip screenshot capture for now and proceed with URL-only analysis
-        console.log(`Performing URL-only audit for: ${url}`);
-        imageBase64 = undefined;
+
+        // Capture screenshot for URL audit
+        try {
+          console.log(`Capturing screenshot for URL: ${url}`);
+          const screenshotBuffer = await this.screenshotService.captureWebsite(url);
+          imageBase64 = this.screenshotService.bufferToBase64(screenshotBuffer);
+          console.log('Screenshot captured successfully');
+        } catch (screenshotError) {
+          console.error('Screenshot capture failed:', screenshotError);
+          // Continue with URL-only analysis if screenshot fails
+          imageBase64 = undefined;
+        }
       } else if (type === 'image') {
         if (!file) {
           res.status(400).json({ error: 'Image file is required for image audit' });
@@ -73,9 +81,9 @@ export class AuditController {
         }
       }
 
-      // Perform UX analysis with Gemini
+      // Perform UX analysis with OpenRouter
       try {
-        const auditResult: AuditData = await this.geminiService.analyzeUX({
+        const auditResult: AuditData = await this.openRouterService.analyzeUX({
           imageBase64,
           url: auditUrl,
           analysisType: type === 'url' ? 'url' : 'screenshot',

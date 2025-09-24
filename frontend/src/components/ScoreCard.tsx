@@ -78,24 +78,24 @@ export const ScoreCard: React.FC<ScoreCardProps> = ({ title, score, icon, descri
       <div className="mb-4">
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm text-gray-600">Score</span>
-          <span className={`text-lg font-bold ${getScoreColor(score.percentage)}`}>
+          <span className={`text-lg font-bold ${getScoreColor(score.percentage || 0)}`}>
             {score.score}/{score.maxScore}
           </span>
         </div>
         <div className="w-full bg-gray-200 rounded-full h-2">
           <div
-            className={`h-2 rounded-full transition-all duration-500 ${getProgressColor(score.percentage)}`}
-            style={{ width: `${score.percentage}%` }}
+            className={`h-2 rounded-full transition-all duration-500 ${getProgressColor(score.percentage || 0)}`}
+            style={{ width: `${score.percentage || 0}%` }}
           />
         </div>
         <p className="text-sm text-gray-600 mt-1">
-          {score.percentage.toFixed(1)}%
+          {(score.percentage || 0).toFixed(1)}%
         </p>
       </div>
 
       <div className="text-sm text-gray-600">
-        {score.issues.length > 0 ? (
-          <span className="text-red-600">{score.issues.length} issues found</span>
+        {(score.issues || []).length > 0 ? (
+          <span className="text-red-600">{(score.issues || []).length} issues found</span>
         ) : (
           <span className="text-green-600">No issues found</span>
         )}

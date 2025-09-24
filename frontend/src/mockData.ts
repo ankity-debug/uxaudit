@@ -63,7 +63,7 @@ export const mockAuditData: AuditData = {
       title: "Missing Error Prevention",
       description: "Forms lack validation and error prevention mechanisms, leading to user frustration",
       severity: "minor",
-      category: "ux-laws",
+      category: "ux-laws" as any,
       recommendation: "Add real-time validation, clear error messages, and helpful input formatting guidance",
       impact: "medium",
       effort: "medium"
@@ -84,7 +84,7 @@ export const mockAuditData: AuditData = {
       title: "Poor Mobile Responsiveness", 
       description: "Interface elements don't adapt well to smaller screen sizes",
       severity: "minor",
-      category: "ux-laws",
+      category: "ux-laws" as any,
       recommendation: "Implement responsive design patterns with mobile-first approach",
       impact: "medium",
       effort: "medium"
