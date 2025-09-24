@@ -45,7 +45,7 @@ const sampleAuditData: AuditData = {
       title: 'Touch targets below 44px',
       description: 'Tap areas are small on mobile, increasing error rate.',
       severity: 'minor',
-      category: 'ux-laws',
+      category: 'ux-laws' as any,
       heuristic: "Fitts's Law",
       recommendation: 'Standardize 44px+ targets and 8px spacing.',
       impact: 'medium',

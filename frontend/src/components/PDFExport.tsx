@@ -162,9 +162,9 @@ export const PDFExport: React.FC<PDFExportProps> = ({ data }) => {
     categories.forEach((category) => {
       const x = chartStartX + (category.position.x * chartSpacing);
       const y = chartStartY + (category.position.y * chartSpacing);
-      const percentage = category.score.percentage;
+      const percentage = category.score.percentage || 0;
       const scoreText = `${percentage.toFixed(0)}%`;
-      
+
       drawCircularProgress(x, y, chartRadius, percentage, category.name, scoreText, category.color);
     });
 

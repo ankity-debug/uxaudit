@@ -100,20 +100,20 @@ export const AuditResults: React.FC<AuditResultsProps> = ({ data, onNewAudit }) 
                     strokeWidth="8"
                     fill="transparent"
                     strokeDasharray={`${2 * Math.PI * 40}`}
-                    strokeDashoffset={`${2 * Math.PI * 40 * (1 - data.scores.overall.percentage / 100)}`}
+                    strokeDashoffset={`${2 * Math.PI * 40 * (1 - (data.scores.overall.percentage || 0) / 100)}`}
                     strokeLinecap="round"
                     className="transition-all duration-1000"
                   />
                 </svg>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-2xl font-bold text-gray-900">
-                    {(data.scores.overall.score / 10).toFixed(1)}
+                  <span className="text-xl font-bold text-gray-900">
+                    {((data.scores.overall.score || 0) / (data.scores.overall.maxScore || 5) * 5).toFixed(1)}/5
                   </span>
                 </div>
               </div>
             </div>
             <p className="text-center text-sm text-gray-600">
-              {data.scores.overall.percentage.toFixed(0)}th percentile
+              {(data.scores.overall.percentage || 0).toFixed(0)}th percentile
             </p>
           </div>
 
@@ -132,9 +132,9 @@ export const AuditResults: React.FC<AuditResultsProps> = ({ data, onNewAudit }) 
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="font-semibold text-gray-900">{data.scores.heuristics.percentage.toFixed(0)}%</p>
-                  <p className={`text-xs ${getScoreLabel(data.scores.heuristics.percentage).color}`}>
-                    {getScoreLabel(data.scores.heuristics.percentage).label}
+                  <p className="font-semibold text-gray-900">{(data.scores.heuristics.percentage || 0).toFixed(0)}%</p>
+                  <p className={`text-xs ${getScoreLabel(data.scores.heuristics.percentage || 0).color}`}>
+                    {getScoreLabel(data.scores.heuristics.percentage || 0).label}
                   </p>
                 </div>
               </div>
@@ -150,9 +150,9 @@ export const AuditResults: React.FC<AuditResultsProps> = ({ data, onNewAudit }) 
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="font-semibold text-gray-900">{data.scores.uxLaws.percentage.toFixed(0)}%</p>
-                  <p className={`text-xs ${getScoreLabel(data.scores.uxLaws.percentage).color}`}>
-                    {getScoreLabel(data.scores.uxLaws.percentage).label}
+                  <p className="font-semibold text-gray-900">{(data.scores.uxLaws.percentage || 0).toFixed(0)}%</p>
+                  <p className={`text-xs ${getScoreLabel(data.scores.uxLaws.percentage || 0).color}`}>
+                    {getScoreLabel(data.scores.uxLaws.percentage || 0).label}
                   </p>
                 </div>
               </div>
@@ -168,9 +168,9 @@ export const AuditResults: React.FC<AuditResultsProps> = ({ data, onNewAudit }) 
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="font-semibold text-gray-900">{data.scores.copywriting.percentage.toFixed(0)}%</p>
-                  <p className={`text-xs ${getScoreLabel(data.scores.copywriting.percentage).color}`}>
-                    {getScoreLabel(data.scores.copywriting.percentage).label}
+                  <p className="font-semibold text-gray-900">{(data.scores.copywriting.percentage || 0).toFixed(0)}%</p>
+                  <p className={`text-xs ${getScoreLabel(data.scores.copywriting.percentage || 0).color}`}>
+                    {getScoreLabel(data.scores.copywriting.percentage || 0).label}
                   </p>
                 </div>
               </div>
@@ -186,9 +186,9 @@ export const AuditResults: React.FC<AuditResultsProps> = ({ data, onNewAudit }) 
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="font-semibold text-gray-900">{data.scores.accessibility.percentage.toFixed(0)}%</p>
-                  <p className={`text-xs ${getScoreLabel(data.scores.accessibility.percentage).color}`}>
-                    {getScoreLabel(data.scores.accessibility.percentage).label}
+                  <p className="font-semibold text-gray-900">{(data.scores.accessibility.percentage || 0).toFixed(0)}%</p>
+                  <p className={`text-xs ${getScoreLabel(data.scores.accessibility.percentage || 0).color}`}>
+                    {getScoreLabel(data.scores.accessibility.percentage || 0).label}
                   </p>
                 </div>
               </div>
@@ -214,7 +214,7 @@ export const AuditResults: React.FC<AuditResultsProps> = ({ data, onNewAudit }) 
               <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
                 <h3 className="font-semibold text-blue-900 mb-2">Key Insights</h3>
                 <ul className="text-sm text-blue-800 space-y-1">
-                  {data.recommendations.slice(0, 3).map((rec, index) => (
+                  {(data.recommendations || []).slice(0, 3).map((rec, index) => (
                     <li key={index} className="flex items-start space-x-2">
                       <span className="text-blue-600 mt-1">•</span>
                       <span>{rec}</span>
@@ -374,7 +374,13 @@ export const AuditResults: React.FC<AuditResultsProps> = ({ data, onNewAudit }) 
                         <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
                           {issue.category === 'heuristics' ? 'Usability' :
                            issue.category === 'accessibility' ? 'Accessibility' :
-                           issue.category === 'copywriting' ? 'Content' : 'UX Laws'}
+                           issue.category === 'copywriting' ? 'Content' :
+                           issue.category === 'ux-laws' ? 'UX Laws' :
+                           issue.category === 'navigation' ? 'Navigation' :
+                           issue.category === 'content' ? 'Content' :
+                           issue.category === 'forms' ? 'Forms' :
+                           issue.category === 'performance' ? 'Performance' :
+                           issue.category === 'visual-hierarchy' ? 'Visual Hierarchy' : 'Other'}
                         </span>
                       </div>
                     </div>

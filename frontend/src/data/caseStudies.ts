@@ -62,16 +62,6 @@ export const caseStudies: CaseStudy[] = [
     keywords: ['msme', 'transactions', 'accessibility', 'business', 'b2b'],
     priority: 7
   },
-  {
-    id: 'pay-unified',
-    title: 'PayUnified',
-    url: 'https://lemonyellow.design/work/pay-unified',
-    industry: 'fintech',
-    description: 'A unified payment platform for businesses of all sizes',
-    workType: ['ui-ux-design', 'platform-design'],
-    keywords: ['payment', 'payment-processing', 'platform', 'saas', 'b2b', 'fintech'],
-    priority: 10
-  },
 
   // Healthcare
   {
@@ -219,14 +209,34 @@ export const industryMapping: Record<string, string[]> = {
   'default': ['business', 'corporate', 'company', 'service', 'platform', 'website', 'app']
 };
 
-// Smart matching algorithm - only returns truly relevant case studies
+// COMPREHENSIVE LIST - All working case studies from lemonyellow.design/work (tested Sept 24, 2025)
+// Total: 8 working out of 16 tested
+const validatedCaseStudies = [
+  'vayana',         // FinTech - 200 ✓
+  'arthaone',       // FinTech - 200 ✓
+  'fibe',           // FinTech - 200 ✓
+  'rxil',           // FinTech - 200 ✓
+  'uppercase',      // E-commerce - 200 ✓
+  'tata-neu',       // E-commerce - 200 ✓
+  'ffreedom',       // EdTech - 200 ✓
+  'clicbrics'       // Real Estate - 200 ✓
+  // BROKEN: phongsavanh-bank(500), pay-unified(404), curebay(404), rezolve(404),
+  //         tata-cliq(404), orra(404), mkcl(404), nijuedx(404)
+];
+
+// Smart matching algorithm - only returns case studies with validated pages
 export function getRelevantCaseStudies(auditUrl?: string, auditSummary?: string, limit: number = 2): CaseStudy[] {
   // If no context provided, return empty - no generic fallbacks
   if (!auditUrl && !auditSummary) {
     return [];
   }
 
-  let scoredCaseStudies = caseStudies.map(caseStudy => ({
+  // First filter to only include validated case studies that actually have pages
+  const validatedCases = caseStudies.filter(caseStudy =>
+    validatedCaseStudies.includes(caseStudy.id)
+  );
+
+  let scoredCaseStudies = validatedCases.map(caseStudy => ({
     ...caseStudy,
     relevanceScore: calculateRelevanceScore(caseStudy, auditUrl, auditSummary)
   }));
@@ -235,9 +245,16 @@ export function getRelevantCaseStudies(auditUrl?: string, auditSummary?: string,
   // This prevents showing irrelevant case studies
   const relevantCaseStudies = scoredCaseStudies.filter(cs => cs.relevanceScore >= 30);
 
-  // If no truly relevant case studies found, return empty
+  // If no truly relevant case studies found, return the highest scoring ones from same industry
   if (relevantCaseStudies.length === 0) {
     console.log('No relevant case studies found for:', auditUrl);
+
+    // Try to find at least same industry matches with lower threshold
+    const industryMatches = scoredCaseStudies.filter(cs => cs.relevanceScore >= 10);
+    if (industryMatches.length > 0) {
+      return industryMatches.slice(0, limit);
+    }
+
     return [];
   }
 
@@ -272,13 +289,16 @@ function calculateRelevanceScore(caseStudy: CaseStudy, auditUrl?: string, auditS
     const domain = extractDomain(auditUrl);
     
     // Fintech domains and patterns - strong matches only
-    const fintechDomains = ['stripe.com', 'paypal.com', 'square.com', 'klarna.com', 'razorpay.com', 'payu.com'];
-    const fintechPatterns = ['pay', 'bank', 'finance', 'loan', 'money', 'card', 'payment', 'fintech'];
-    
+    const fintechDomains = ['stripe.com', 'paypal.com', 'square.com', 'klarna.com', 'razorpay.com', 'payu.com', 'icicidirect.com'];
+    const fintechPatterns = ['pay', 'bank', 'finance', 'loan', 'money', 'card', 'payment', 'fintech', 'trading', 'invest', 'mutual', 'fund', 'stock', 'brokerage', 'wealth'];
+
     if (fintechDomains.includes(domain) || fintechPatterns.some(pattern => domain.includes(pattern))) {
       if (caseStudy.industry === 'fintech') {
-        score += 80;
+        score += 100; // Increased score for exact industry match
         hasStrongMatch = true;
+      } else {
+        // Penalty for non-fintech industries when fintech domain detected
+        score -= 50;
       }
     }
     
@@ -286,17 +306,21 @@ function calculateRelevanceScore(caseStudy: CaseStudy, auditUrl?: string, auditS
     const healthcarePatterns = ['health', 'medical', 'doctor', 'hospital', 'clinic', 'pharma', 'healthcare'];
     if (healthcarePatterns.some(pattern => domain.includes(pattern))) {
       if (caseStudy.industry === 'healthcare') {
-        score += 80;
+        score += 100;
         hasStrongMatch = true;
+      } else {
+        score -= 30; // Minor penalty for non-healthcare when healthcare detected
       }
     }
-    
+
     // E-commerce domains - strong matches only
     const ecommercePatterns = ['shop', 'store', 'market', 'buy', 'cart', 'retail', 'ecommerce', 'commerce'];
     if (ecommercePatterns.some(pattern => domain.includes(pattern))) {
       if (caseStudy.industry === 'ecommerce') {
-        score += 80;
+        score += 100;
         hasStrongMatch = true;
+      } else {
+        score -= 30; // Penalty for non-ecommerce when ecommerce detected
       }
     }
 
