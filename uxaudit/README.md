@@ -91,12 +91,16 @@ API
 - Upload validated and standardized (format/size) with Sharp; analyzed with the prompt context
 
 3) Analysis
-- `geminiService` builds a structured prompt; requests strict JSON via OpenRouter
-- Clear error messages bubble up (`AI analysis failed: <reason>`) for the UI to show
-- `openRouterService` exists with optional image‑fallback + basic model rotation but is not the default path
+- For image-based audits, `openRouterService` builds a structured prompt and requests strict JSON from the configured AI model (e.g., Grok-4 via OpenRouter).
+- For URL-based audits, `contextualAuditService` performs a more in-depth analysis by considering sitemap, HTML content, and the visual screenshot.
+- The service includes robust error handling, including retries for image-related API errors and fallback responses for JSON parsing failures.
+- Clear error messages bubble up (`AI analysis failed: <reason>`) for the UI to show.
 
-4) Normalization
-- Computes overall and per‑category percentages, assigns IDs, compiles evidence
+4) Response Processing & Normalization
+- The raw JSON response from the AI is parsed and normalized into a consistent `AuditData` structure.
+- **User Journey Map Data Transformation**: The data for the persona-driven journey map is transformed. `frictionPoints` and `trustBarriers` from the AI response are combined into a single `issues` array, and `userGoal` is mapped to the `action` field, ensuring the frontend displays the journey map correctly.
+- Category scores and percentages are calculated and a grade is assigned.
+- Issue IDs are generated using `uuidv4`.
 
 5) Frontend rendering
 - Data stored as `mainAuditData` in `sessionStorage`; the report view reads and renders it
