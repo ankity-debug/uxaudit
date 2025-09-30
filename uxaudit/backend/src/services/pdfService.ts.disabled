@@ -1,0 +1,328 @@
+import puppeteer from 'puppeteer';
+import { AuditData } from '../types';
+
+export class PDFService {
+  async generateAuditReport(auditData: AuditData, platformName: string): Promise<Uint8Array> {
+    const html = this.generateHTML(auditData, platformName);
+
+    const options = {
+      format: 'A4' as const,
+      margin: {
+        top: '20mm',
+        right: '20mm',
+        bottom: '20mm',
+        left: '20mm'
+      },
+      printBackground: true,
+      preferCSSPageSize: true
+    };
+
+    let browser;
+    try {
+      browser = await puppeteer.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+      });
+      const page = await browser.newPage();
+      await page.setContent(html, { waitUntil: 'networkidle0' });
+      const pdfBuffer = await page.pdf(options);
+      return pdfBuffer;
+    } catch (error) {
+      console.error('PDF generation error:', error);
+      throw new Error('Failed to generate PDF report');
+    } finally {
+      if (browser) {
+        await browser.close();
+      }
+    }
+  }
+
+  private generateHTML(auditData: AuditData, platformName: string): string {
+    const currentDate = new Date().toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+
+    return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>UX Audit Report - ${platformName}</title>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            body {
+                font-family: 'Arial', sans-serif;
+                line-height: 1.6;
+                color: #333;
+                font-size: 12pt;
+            }
+
+            .header {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 40px 0;
+                text-align: center;
+                margin-bottom: 40px;
+                border-radius: 8px;
+            }
+
+            .header h1 {
+                font-size: 28pt;
+                margin-bottom: 10px;
+                font-weight: bold;
+            }
+
+            .header p {
+                font-size: 14pt;
+                opacity: 0.9;
+            }
+
+            .meta-info {
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 30px;
+                padding: 20px;
+                background: #f8f9fa;
+                border-radius: 8px;
+            }
+
+            .meta-item {
+                text-align: center;
+            }
+
+            .meta-label {
+                font-weight: bold;
+                color: #666;
+                font-size: 10pt;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }
+
+            .meta-value {
+                font-size: 12pt;
+                margin-top: 5px;
+            }
+
+            .section {
+                margin-bottom: 30px;
+                break-inside: avoid;
+            }
+
+            .section-title {
+                font-size: 18pt;
+                font-weight: bold;
+                color: #333;
+                margin-bottom: 15px;
+                padding-bottom: 10px;
+                border-bottom: 2px solid #667eea;
+            }
+
+            .score-container {
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 20px;
+                gap: 20px;
+            }
+
+            .score-item {
+                flex: 1;
+                text-align: center;
+                padding: 20px;
+                background: #f8f9fa;
+                border-radius: 8px;
+                border-left: 4px solid #667eea;
+            }
+
+            .score-title {
+                font-weight: bold;
+                color: #666;
+                font-size: 10pt;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                margin-bottom: 5px;
+            }
+
+            .score-value {
+                font-size: 24pt;
+                font-weight: bold;
+                color: #667eea;
+            }
+
+            .recommendations {
+                list-style: none;
+            }
+
+            .recommendation {
+                margin-bottom: 20px;
+                padding: 15px;
+                background: #f8f9fa;
+                border-radius: 8px;
+                border-left: 4px solid #28a745;
+            }
+
+            .recommendation h3 {
+                font-size: 14pt;
+                color: #333;
+                margin-bottom: 10px;
+            }
+
+            .recommendation p {
+                color: #666;
+                margin-bottom: 10px;
+            }
+
+            .priority {
+                display: inline-block;
+                padding: 3px 8px;
+                border-radius: 12px;
+                font-size: 9pt;
+                font-weight: bold;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }
+
+            .priority.high {
+                background: #dc3545;
+                color: white;
+            }
+
+            .priority.medium {
+                background: #ffc107;
+                color: #333;
+            }
+
+            .priority.low {
+                background: #28a745;
+                color: white;
+            }
+
+            .insights {
+                margin-bottom: 15px;
+            }
+
+            .insights p {
+                margin-bottom: 10px;
+            }
+
+            .footer {
+                margin-top: 50px;
+                padding-top: 20px;
+                border-top: 1px solid #eee;
+                text-align: center;
+                font-size: 10pt;
+                color: #666;
+            }
+
+            .page-break {
+                page-break-before: always;
+            }
+
+            @media print {
+                .section {
+                    break-inside: avoid;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>UX Audit Report</h1>
+            <p>Comprehensive User Experience Analysis</p>
+        </div>
+
+        <div class="meta-info">
+            <div class="meta-item">
+                <div class="meta-label">Platform</div>
+                <div class="meta-value">${platformName}</div>
+            </div>
+            <div class="meta-item">
+                <div class="meta-label">Report Date</div>
+                <div class="meta-value">${currentDate}</div>
+            </div>
+            <div class="meta-item">
+                <div class="meta-label">Analysis Type</div>
+                <div class="meta-value">Complete UX Audit</div>
+            </div>
+        </div>
+
+        ${auditData.scores?.overall ? `
+        <div class="section">
+            <h2 class="section-title">Overall Assessment</h2>
+            <div class="score-container">
+                <div class="score-item">
+                    <div class="score-title">Overall Score</div>
+                    <div class="score-value">${auditData.scores.overall.score}/${auditData.scores.overall.maxScore}</div>
+                </div>
+                <div class="score-item">
+                    <div class="score-title">Grade</div>
+                    <div class="score-value">${auditData.scores.overall.grade}</div>
+                </div>
+                <div class="score-item">
+                    <div class="score-title">Heuristics</div>
+                    <div class="score-value">${auditData.scores.heuristics.score}/${auditData.scores.heuristics.maxScore}</div>
+                </div>
+                <div class="score-item">
+                    <div class="score-title">Accessibility</div>
+                    <div class="score-value">${auditData.scores.accessibility.score}/${auditData.scores.accessibility.maxScore}</div>
+                </div>
+            </div>
+        </div>
+        ` : ''}
+
+        ${auditData.keyInsights && auditData.keyInsights.length > 0 ? `
+        <div class="section">
+            <h2 class="section-title">Key Insights</h2>
+            <div class="insights">
+                ${auditData.keyInsights.map((insight: string) =>
+                    `<p>${insight}</p>`
+                ).join('')}
+            </div>
+        </div>
+        ` : ''}
+
+        ${auditData.recommendations && auditData.recommendations.length > 0 ? `
+        <div class="section page-break">
+            <h2 class="section-title">Recommendations</h2>
+            <ul class="recommendations">
+                ${auditData.recommendations.map((rec: string, index: number) => `
+                    <li class="recommendation">
+                        <h3>Recommendation ${index + 1}</h3>
+                        <p>${rec}</p>
+                    </li>
+                `).join('')}
+            </ul>
+        </div>
+        ` : ''}
+
+        ${auditData.issues && auditData.issues.length > 0 ? `
+        <div class="section">
+            <h2 class="section-title">Identified Issues</h2>
+            <ul class="recommendations">
+                ${auditData.issues.map((issue: any, index: number) => `
+                    <li class="recommendation">
+                        <h3>${issue.title || `Issue ${index + 1}`}</h3>
+                        <p>${issue.description}</p>
+                        ${issue.severity ? `<span class="priority ${issue.severity}">${issue.severity} Severity</span>` : ''}
+                        ${issue.recommendation ? `<p><strong>Recommendation:</strong> ${issue.recommendation}</p>` : ''}
+                    </li>
+                `).join('')}
+            </ul>
+        </div>
+        ` : ''}
+
+        <div class="footer">
+            <p>Generated by UX Audit Platform | ${currentDate}</p>
+            <p>This report is confidential and intended for the recipient only.</p>
+        </div>
+    </body>
+    </html>
+    `;
+  }
+}

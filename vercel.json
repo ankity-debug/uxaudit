@@ -1,0 +1,27 @@
+{
+  "functions": {
+    "api/**/*.ts": {
+      "runtime": "nodejs18.x",
+      "maxDuration": 60
+    }
+  },
+  "installCommand": "npm ci && npm ci --prefix uxaudit/frontend && npm ci --prefix uxaudit/backend",
+  "buildCommand": "npm --prefix uxaudit/frontend run build && npm --prefix uxaudit/backend run build",
+  "outputDirectory": "uxaudit/frontend/build",
+  "routes": [
+    { "src": "/api/(.*)", "dest": "/api/$1" },
+    { "src": "/(.*)", "dest": "/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+      ]
+    }
+  ],
+  "protection": {
+    "publicRoutes": ["/api/(.*)"]
+  }
+}
+
