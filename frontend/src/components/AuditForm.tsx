@@ -366,9 +366,9 @@ export const AuditForm: React.FC<AuditFormProps> = ({ onSubmit, isLoading }) => 
                     </button>
                   </form>
 
-                  {/* Microcopy */}
+                  {/* Privacy Notice */}
                   <p className="text-xs text-gray-500 mt-4 text-left">
-                    No storage. Instant insights.
+                    🔒 We don't store any data. Instant insights.
                   </p>
                 </div>
               </div>
