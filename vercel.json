@@ -5,9 +5,9 @@
       "maxDuration": 60
     }
   },
-  "installCommand": "npm ci && npm ci --prefix uxaudit/frontend && npm ci --prefix uxaudit/backend",
-  "buildCommand": "npm --prefix uxaudit/frontend run build && npm --prefix uxaudit/backend run build",
-  "outputDirectory": "uxaudit/frontend/build",
+  "installCommand": "npm ci && npm ci --prefix frontend && npm ci --prefix backend",
+  "buildCommand": "npm --prefix frontend run build && npm --prefix backend run build",
+  "outputDirectory": "frontend/build",
   "routes": [
     { "src": "/api/(.*)", "dest": "/api/$1" },
     { "src": "/(.*)", "dest": "/index.html" }
@@ -16,12 +16,11 @@
     {
       "source": "/api/(.*)",
       "headers": [
-        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
       ]
     }
-  ],
-  "protection": {
-    "publicRoutes": ["/api/(.*)"]
-  }
+  ]
 }
-

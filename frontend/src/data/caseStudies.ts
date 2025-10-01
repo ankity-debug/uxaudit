@@ -225,7 +225,7 @@ const validatedCaseStudies = [
 ];
 
 // Smart matching algorithm - only returns case studies with validated pages
-export function getRelevantCaseStudies(auditUrl?: string, auditSummary?: string, limit: number = 2): CaseStudy[] {
+export function getRelevantCaseStudies(auditUrl?: string, auditSummary?: string, limit: number = 3): CaseStudy[] {
   // If no context provided, return empty - no generic fallbacks
   if (!auditUrl && !auditSummary) {
     return [];
@@ -266,9 +266,14 @@ export function getRelevantCaseStudies(auditUrl?: string, auditSummary?: string,
     return b.priority - a.priority;
   });
 
+  // Diversity: build a candidate window and apply seeded shuffle
+  const seedSource = (auditUrl || auditSummary || 'default').toString();
+  const candidateWindow = relevantCaseStudies.slice(0, Math.min(6, relevantCaseStudies.length));
+  const diversified = pickDiversified(seedSource, candidateWindow, limit);
+
   // Debug logging
   console.log('Case Study Matching for:', auditUrl);
-  console.log('Relevant matches found:', relevantCaseStudies.slice(0, limit).map(cs => ({
+  console.log('Relevant matches found:', diversified.map(cs => ({
     title: cs.title,
     industry: cs.industry,
     score: cs.relevanceScore,
@@ -277,7 +282,7 @@ export function getRelevantCaseStudies(auditUrl?: string, auditSummary?: string,
   })));
 
   // Only return studies that meet our relevance threshold
-  return relevantCaseStudies.slice(0, limit);
+  return diversified;
 }
 
 function calculateRelevanceScore(caseStudy: CaseStudy, auditUrl?: string, auditSummary?: string): number {
@@ -413,4 +418,64 @@ function extractDomain(url: string): string {
 function extractKeywordsFromUrl(url: string): string[] {
   const urlParts = url.toLowerCase().split(/[./-_?]/);
   return urlParts.filter(part => part.length > 2);
+}
+
+// Utility: select a diversified subset with stable randomness per audit
+function pickDiversified(seed: string, items: any[], limit: number) {
+  if (items.length <= limit) return items;
+
+  const shuffled = seededShuffle(items, seed);
+  const result: any[] = [];
+  const perIndustryCap = Math.max(1, Math.floor(Math.min(limit, 3) / 2)); // small cap encourages variety
+  const industryCounts: Record<string, number> = {};
+
+  for (const item of shuffled) {
+    const industry = item.industry || 'other';
+    const count = industryCounts[industry] || 0;
+    // Prefer diversity while ensuring we still fill the limit
+    if (count < perIndustryCap || result.length + (items.length - result.length) <= limit) {
+      result.push(item);
+      industryCounts[industry] = count + 1;
+    }
+    if (result.length >= limit) break;
+  }
+
+  // Fallback: top up deterministically if cap prevented filling
+  if (result.length < limit) {
+    for (const item of items) {
+      if (!result.includes(item)) {
+        result.push(item);
+        if (result.length >= limit) break;
+      }
+    }
+  }
+  return result;
+}
+
+function seededShuffle<T>(array: T[], seed: string): T[] {
+  const arr = array.slice();
+  let random = mulberry32(hashString(seed));
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function hashString(str: string): number {
+  let h = 1779033703 ^ str.length;
+  for (let i = 0; i < str.length; i++) {
+    h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
+    h = (h << 13) | (h >>> 19);
+  }
+  return (h >>> 0);
+}
+
+function mulberry32(a: number) {
+  return function() {
+    let t = a += 0x6D2B79F5;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  }
 }

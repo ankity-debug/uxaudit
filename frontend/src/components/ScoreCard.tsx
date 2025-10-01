@@ -13,7 +13,7 @@ export const ScoreCard: React.FC<ScoreCardProps> = ({ title, score, icon, descri
   const getScoreColor = (percentage: number) => {
     if (percentage >= 90) return 'text-green-600';
     if (percentage >= 70) return 'text-blue-600';
-    if (percentage >= 50) return 'text-yellow-600';
+    if (percentage >= 50) return 'text-pink-600';
     if (percentage >= 30) return 'text-orange-600';
     return 'text-red-600';
   };
@@ -21,7 +21,7 @@ export const ScoreCard: React.FC<ScoreCardProps> = ({ title, score, icon, descri
   const getProgressColor = (percentage: number) => {
     if (percentage >= 90) return 'bg-green-500';
     if (percentage >= 70) return 'bg-blue-500';
-    if (percentage >= 50) return 'bg-yellow-500';
+    if (percentage >= 50) return 'bg-pink-500';
     if (percentage >= 30) return 'bg-orange-500';
     return 'bg-red-500';
   };
@@ -46,7 +46,7 @@ export const ScoreCard: React.FC<ScoreCardProps> = ({ title, score, icon, descri
               cx="50"
               cy="50"
               r="35"
-              stroke="rgb(250, 204, 21)"
+              stroke="rgb(239, 65, 113)"
               strokeWidth="6"
               fill="transparent"
               strokeDasharray={`${2 * Math.PI * 35}`}

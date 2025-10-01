@@ -1,28 +1,84 @@
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
+import rateLimit from 'express-rate-limit';
 import { AuditController } from './controllers/auditController';
 import { upload } from './utils/multerConfig';
 
-// Load environment variables
-dotenv.config();
-
 const app = express();
+
+// Configure CORS origins from environment
+const getAllowedOrigins = (): string[] => {
+  const corsOrigins = process.env.CORS_ORIGINS;
+  if (corsOrigins) {
+    return corsOrigins.split(',').map(origin => origin.trim());
+  }
+
+  // Default origins for development
+  if (process.env.NODE_ENV !== 'production') {
+    return ['http://localhost:3000', 'http://127.0.0.1:3000'];
+  }
+
+  // Production must specify CORS_ORIGINS explicitly
+  console.warn('⚠️ CORS_ORIGINS not set in production - defaulting to restrictive policy');
+  return ['https://uxaudit.ly.design'];
+};
+
+const allowedOrigins = getAllowedOrigins();
 
 // Middleware
 app.use(cors({
   origin: (origin, cb) => {
+    // Allow requests without origin (mobile apps, postman, etc.)
     if (!origin) return cb(null, true);
-    const devAllowed = ['http://localhost:3000', 'http://127.0.0.1:3000'];
-    if (process.env.NODE_ENV !== 'production' && devAllowed.includes(origin)) return cb(null, true);
-    // Allow same-origin and any production domains handled by Vercel
-    return cb(null, true);
+
+    // Check if origin is in allowed list
+    if (allowedOrigins.includes(origin)) {
+      return cb(null, true);
+    }
+
+    // Reject with error
+    console.warn(`🚫 CORS blocked origin: ${origin}`);
+    return cb(new Error(`CORS policy violation: ${origin} not allowed`), false);
   },
   credentials: true
 }));
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// Rate limiting for audit endpoints
+const auditLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: process.env.NODE_ENV === 'production' ? 10 : 100, // Stricter in production
+  message: {
+    error: 'Too many audit requests',
+    message: 'Please wait before requesting another audit',
+    retryAfter: '15 minutes'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  // Skip rate limiting for whitelisted IPs (optional)
+  skip: (req) => {
+    const whitelistedIPs = process.env.RATE_LIMIT_WHITELIST?.split(',') || [];
+    return whitelistedIPs.includes(req.ip || '');
+  }
+});
+
+// General API rate limiting
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: process.env.NODE_ENV === 'production' ? 100 : 1000,
+  message: {
+    error: 'Too many requests',
+    message: 'Please slow down',
+    retryAfter: '15 minutes'
+  },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+// Apply general rate limiting to all routes
+app.use('/api/', generalLimiter);
 
 // Initialize controllers
 const auditController = new AuditController();
@@ -40,34 +96,9 @@ app.get('/api/health', (req, res) => {
 app.get('/api/status', auditController.getAuditStatus);
 
 // Main audit endpoint - handles both URL and image uploads
-app.post('/api/audit', upload.single('image'), auditController.auditWebsite);
+app.post('/api/audit', auditLimiter, upload.single('image'), auditController.auditWebsite);
 
-// Error handling middleware
-app.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('API Error:', error);
-  
-  if (error.code === 'LIMIT_FILE_SIZE') {
-    return res.status(400).json({ error: 'File too large. Maximum size is 10MB.' });
-  }
-  
-  if (error.code === 'LIMIT_FILE_COUNT') {
-    return res.status(400).json({ error: 'Too many files. Only one file allowed.' });
-  }
-  
-  if (error.message && error.message.includes('Only image files are allowed')) {
-    return res.status(400).json({ error: 'Invalid file type. Only images are allowed.' });
-  }
-  
-  res.status(500).json({ 
-    error: 'Internal server error',
-    message: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
-  });
-});
-
-// 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({ error: 'Endpoint not found' });
-});
+// Share audit report via email (also rate limited as it's resource intensive)
+app.post('/api/share-report', auditLimiter, auditController.shareAuditReport);
 
 export default app;
-

@@ -10,7 +10,7 @@ export interface AuditIssue {
   title: string;
   description: string;
   severity: 'critical' | 'major' | 'minor';
-  category: 'heuristics' | 'ux-laws' | 'copywriting' | 'accessibility';
+  category: 'heuristics' | 'ux-laws' | 'copywriting' | 'accessibility' | 'visual-design' | 'user-flow';
   heuristic?: string; // Specific heuristic/law violated
   recommendation: string;
   element?: string; // Specific element affected
@@ -18,6 +18,8 @@ export interface AuditIssue {
   impact: 'high' | 'medium' | 'low'; // User impact level
   effort: 'high' | 'medium' | 'low'; // Implementation effort
   page?: string; // Which page this issue appears on
+  userImpact?: string; // Specific user impact description
+  userEmotionalImpact?: string; // How users feel about this issue
 }
 
 export interface HeuristicAnalysis {
@@ -60,21 +62,51 @@ export interface UserJourney {
 
 export interface PersonaDrivenJourney {
   persona: string;
-  personaReasoning: string;
-  steps: {
-    action: string;
-    issues: string[];
-    improvements: string[];
-  }[];
-  overallExperience: 'excellent' | 'good' | 'fair' | 'poor' | 'broken';
+  personaReasoning?: string;
+  stages: UserJourneyStage[];
+  overallExperience?: 'excellent' | 'good' | 'fair' | 'poor' | 'broken';
 }
 
 export interface HeuristicViolation {
+  title: string;
   heuristic: string;
   element: string;
   violation: string;
   businessImpact: string;
   evidence: string;
+  userEmotionalImpact?: string;
+}
+
+export interface VisualDesignAudit {
+  visualHierarchy: {
+    score: number;
+    issues: string[];
+    strengths: string[];
+  };
+  typography: {
+    score: number;
+    issues: string[];
+    strengths: string[];
+  };
+  colorContrast: {
+    score: number;
+    issues: string[];
+    affectedElements: string[];
+  };
+  spacing: {
+    score: number;
+    issues: string[];
+    strengths: string[];
+  };
+}
+
+export interface UserJourneyStage {
+  stage: 'awareness' | 'exploration' | 'trust' | 'action' | 'retention';
+  userGoal: string;
+  emotionalState: 'curious' | 'cautious' | 'skeptical' | 'engaged' | 'confused' | 'frustrated' | 'confident' | 'hesitant' | 'concerned' | 'determined' | 'overwhelmed' | 'impatient';
+  frictionPoints: string[];
+  trustBarriers: string[];
+  improvements: string[];
 }
 
 export interface PrioritizedFix {
@@ -97,6 +129,7 @@ export interface AuditScores {
   uxLaws: CategoryScore;
   copywriting: CategoryScore;
   accessibility: CategoryScore;
+  visualDesign?: CategoryScore;
   maturityScorecard: UXMaturityScorecard;
 }
 
@@ -117,6 +150,7 @@ export interface AuditData {
   personaDrivenJourney?: PersonaDrivenJourney | null;
   heuristicViolations?: HeuristicViolation[];
   prioritizedFixes?: PrioritizedFix[];
+  visualDesignAudit?: VisualDesignAudit;
   evidenceFiles: string[]; // List of screenshot/evidence files
   analysisMetadata: {
     model: string;

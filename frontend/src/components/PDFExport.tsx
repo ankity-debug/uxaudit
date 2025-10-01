@@ -23,7 +23,7 @@ export const PDFExport: React.FC<PDFExportProps> = ({ data }) => {
     };
 
     // Helper function to draw circular progress (donut chart style)
-    const drawCircularProgress = (x: number, y: number, radius: number, percentage: number, label: string, score: string, color: number[] = [248, 223, 0]) => {
+    const drawCircularProgress = (x: number, y: number, radius: number, percentage: number, label: string, score: string, color: number[] = [239, 65, 113]) => {
       const centerX = x + radius;
       const centerY = y + radius;
       
@@ -71,7 +71,7 @@ export const PDFExport: React.FC<PDFExportProps> = ({ data }) => {
 
     // === HEADER SECTION ===
     // Yellow background with grid pattern
-    pdf.setFillColor(248, 223, 0); // #F8DF00
+    pdf.setFillColor(239, 65, 113); // #EF4171
     pdf.rect(0, 0, pageWidth, 85, 'F');
     
     // White content frame
@@ -136,7 +136,7 @@ export const PDFExport: React.FC<PDFExportProps> = ({ data }) => {
       { 
         name: 'Heuristics', 
         score: data.scores.heuristics, 
-        color: [248, 223, 0],
+        color: [239, 65, 113],
         position: { x: 0, y: 0 }
       },
       { 
@@ -350,7 +350,7 @@ export const PDFExport: React.FC<PDFExportProps> = ({ data }) => {
   return (
     <button
       onClick={generatePDF}
-      className="px-6 py-3 bg-gray-800 text-yellow-400 rounded-lg hover:bg-gray-700 transition-colors flex items-center space-x-2 font-medium"
+      className="px-6 py-3 bg-gray-800 text-pink-400 rounded-lg hover:bg-gray-700 transition-colors flex items-center space-x-2 font-medium"
     >
       <span>📄</span>
       <span>Export PDF</span>

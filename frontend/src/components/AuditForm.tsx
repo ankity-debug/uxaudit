@@ -1,6 +1,7 @@
 import React, { useState, KeyboardEvent, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Upload, Globe, CheckCircle } from 'lucide-react';
+import { Header } from './Header';
 
 interface AuditFormProps {
   onSubmit: (input: { type: 'url' | 'image'; value: string | File }) => void;
@@ -156,16 +157,7 @@ export const AuditForm: React.FC<AuditFormProps> = ({ onSubmit, isLoading }) => 
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           
           {/* Header */}
-          <header className="pt-8 pb-12">
-            <div className="flex items-center justify-center md:justify-start">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-yellow-400 rounded-xl flex items-center justify-center">
-                  <span className="text-black font-bold text-lg">LM</span>
-                </div>
-                <span className="text-xl font-semibold text-gray-900">LimeMind</span>
-              </div>
-            </div>
-          </header>
+          <Header />
 
           {/* Hero Section */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-12 lg:gap-16 items-center min-h-[calc(100vh-200px)]">
@@ -235,7 +227,7 @@ export const AuditForm: React.FC<AuditFormProps> = ({ onSubmit, isLoading }) => 
                       className={`relative z-10 flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg text-sm font-medium transition-all duration-200 min-h-[44px] ${
                         activeTab === 'url'
                           ? 'text-gray-900'
-                          : 'text-gray-600 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2'
+                          : 'text-gray-600 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-2'
                       }`}
                     >
                       <Globe className="w-4 h-4" />
@@ -251,7 +243,7 @@ export const AuditForm: React.FC<AuditFormProps> = ({ onSubmit, isLoading }) => 
                       className={`relative z-10 flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg text-sm font-medium transition-all duration-200 min-h-[44px] ${
                         activeTab === 'image'
                           ? 'text-gray-900'
-                          : 'text-gray-600 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2'
+                          : 'text-gray-600 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-2'
                       }`}
                     >
                       <Upload className="w-4 h-4" />
@@ -274,7 +266,7 @@ export const AuditForm: React.FC<AuditFormProps> = ({ onSubmit, isLoading }) => 
                               value={url}
                               onChange={(e) => setUrl(e.target.value)}
                               placeholder="Paste a link (e.g., https://example.com)"
-                              className="w-full h-full px-4 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:bg-white transition-all"
+                              className="w-full h-full px-4 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:bg-white transition-all"
                               disabled={isLoading}
                               required
                               aria-describedby={error ? 'error-message' : undefined}
@@ -292,7 +284,7 @@ export const AuditForm: React.FC<AuditFormProps> = ({ onSubmit, isLoading }) => 
                                 ? 'border-green-400 bg-green-50'
                                 : isDragging
                                 ? 'border-blue-400 bg-blue-50'
-                                : 'border-gray-300 hover:border-gray-400 bg-gray-50 focus-within:ring-2 focus-within:ring-yellow-400'
+                                : 'border-gray-300 hover:border-gray-400 bg-gray-50 focus-within:ring-2 focus-within:ring-pink-500'
                             }`}>
                               <input
                                 id="file-input"
@@ -337,7 +329,7 @@ export const AuditForm: React.FC<AuditFormProps> = ({ onSubmit, isLoading }) => 
                     <button
                       type="submit"
                       disabled={!isFormValid || isLoading}
-                      className="w-full bg-yellow-400 hover:bg-yellow-500 text-black font-semibold py-4 px-6 rounded-xl transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 min-h-[44px]"
+                      className="w-full bg-pink-500 hover:bg-pink-600 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-2 min-h-[44px]"
                     >
                       {isLoading ? (
                         <div className="flex items-center justify-center space-x-3">

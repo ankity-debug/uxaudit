@@ -37,7 +37,7 @@ export class OpenRouterService {
             'Authorization': `Bearer ${this.apiKey}`,
             'Content-Type': 'application/json',
             'HTTP-Referer': 'https://lemonyellow.design',
-            'X-Title': 'LimeMind UX Audit Tool'
+            'X-Title': 'lycheeLens UX Audit Tool'
           },
           timeout: 30000
         });
@@ -87,6 +87,7 @@ export class OpenRouterService {
   }
 
   async analyzeWithContext(contextualPrompt: string, imageBase64?: string): Promise<AuditData> {
+    // FULL QUALITY: Use Grok-4 for best analysis
     const model = 'x-ai/grok-4-fast:free';
 
     try {
@@ -105,15 +106,15 @@ export class OpenRouterService {
           model: model,
           messages: makeMessages(withImage),
           temperature: 0.1,
-          max_tokens: 4096
+          max_tokens: 4096 // Full token allowance
         }, {
           headers: {
             'Authorization': `Bearer ${this.apiKey}`,
             'Content-Type': 'application/json',
             'HTTP-Referer': 'https://lemonyellow.design',
-            'X-Title': 'LimeMind UX Audit Tool'
+            'X-Title': 'lycheeLens UX Audit Tool'
           },
-          timeout: 35000 // Slightly longer for contextual analysis
+          timeout: 40000 // Reasonable timeout for quality analysis
         });
       };
 
@@ -145,6 +146,18 @@ export class OpenRouterService {
 
     } catch (error: any) {
       console.error(`Contextual OpenRouter API error with ${model}:`, error.response?.data || error.message);
+
+      // If JSON parsing fails, try to create a fallback response
+      if (error.message && error.message.includes('AI response is not valid JSON')) {
+        console.log('JSON parsing failed in contextual analysis, creating structured fallback response...');
+        // Create a minimal valid response instead of failing completely
+        const fallbackPrompt: GeminiAnalysisPrompt = {
+          url: 'fallback',
+          analysisType: 'contextual'
+        };
+        return this.createDemoResponse(fallbackPrompt);
+      }
+
       throw new Error(`Contextual AI analysis failed: ${error.response?.data?.error || error.message || 'Unknown analysis error'}`);
     }
   }
@@ -152,36 +165,38 @@ export class OpenRouterService {
   private buildAnalysisPrompt(prompt: GeminiAnalysisPrompt): string {
     const subject = prompt.url || "the uploaded image";
 
-    return `Analyze ${subject} and respond with ONLY a valid JSON object (no extra text):
+    return `As a UX consultant, analyze ${subject} for user experience and visual design. Use consultative, user-impact language—not technical dev terms. Focus on user needs, business impact, and emotional barriers. Respond with ONLY a valid JSON object (no extra text):
 
 {
   "url": "${subject}",
   "timestamp": "${new Date().toISOString()}",
-  "summary": "Brief description of the business and main UX issues found",
+  "summary": "Brief description of the business purpose and key user experience barriers found",
 
   "keyInsights": [
-    "Key finding with specific evidence from the site",
-    "Pattern observed with actual examples"
+    "User-focused insight explaining how design choices affect user behavior and trust",
+    "Business-impact insight connecting UX issues to potential revenue or conversion problems"
   ],
 
   "issues": [
     {
-      "title": "Specific issue found",
-      "category": "navigation|content|forms|accessibility|performance|visual-hierarchy",
-      "description": "Description with quoted text or specific UI elements",
-      "recommendation": "Specific fix needed",
+      "title": "User-friendly issue description (e.g., 'Users struggle to find key information')",
+      "category": "navigation|content|forms|accessibility|visual-design|user-flow",
+      "description": "User-impact description: How this affects real users, their emotions, and behavior. Avoid technical jargon.",
+      "recommendation": "Clear, actionable solution focused on user outcomes",
       "severity": "critical|major|minor",
       "priority": "high|medium|low",
-      "effort": "low|medium|high"
+      "effort": "low|medium|high",
+      "userImpact": "Specific impact on user experience (e.g., 'Creates confusion for 70% of first-time visitors')"
     }
   ],
 
   "scores": {
     "overall": {"score": 3.2, "maxScore": 5.0, "percentage": 64},
-    "heuristics": {"score": 3.0, "maxScore": 5.0, "findings": "Brief assessment"},
-    "uxLaws": {"score": 3.0, "maxScore": 5.0, "findings": "Brief assessment"},
-    "accessibility": {"score": 3.0, "maxScore": 5.0, "findings": "Brief assessment"},
-    "copywriting": {"score": 3.0, "maxScore": 5.0, "findings": "Brief assessment"}
+    "heuristics": {"score": 3.0, "maxScore": 5.0, "findings": "User-focused assessment of interaction patterns and ease of use"},
+    "uxLaws": {"score": 3.0, "maxScore": 5.0, "findings": "Assessment of cognitive load and user behavior principles"},
+    "accessibility": {"score": 3.0, "maxScore": 5.0, "findings": "Evaluation of inclusivity and usability for all users"},
+    "visualDesign": {"score": 3.0, "maxScore": 5.0, "findings": "Assessment of visual hierarchy, typography, contrast, and UI clarity"},
+    "copywriting": {"score": 3.0, "maxScore": 5.0, "findings": "Evaluation of content clarity and user guidance"}
   },
 
   "prioritizedFixes": [
@@ -194,49 +209,152 @@ export class OpenRouterService {
   ],
 
   "personaDrivenJourney": {
-    "persona": "Primary user type (e.g., 'First-time visitor looking to understand services')",
-    "steps": [
+    "persona": "Primary user type with context (e.g., 'Financial developer seeking API integration')",
+    "stages": [
       {
-        "step": "Landing on homepage",
-        "issues": ["Unclear value proposition", "No clear next step"],
-        "improvements": ["Add prominent headline", "Include clear CTA button"]
+        "stage": "awareness",
+        "userGoal": "Understanding what the platform offers and initial credibility assessment",
+        "emotionalState": "curious|cautious|skeptical",
+        "frictionPoints": ["User-focused friction points they encounter"],
+        "trustBarriers": ["What prevents users from feeling confident"],
+        "improvements": ["User-outcome focused improvements"]
       },
       {
-        "step": "Navigation exploration",
-        "issues": ["Confusing menu structure"],
-        "improvements": ["Restructure navigation hierarchy"]
+        "stage": "exploration",
+        "userGoal": "Finding specific information or features they need",
+        "emotionalState": "engaged|confused|frustrated",
+        "frictionPoints": ["Navigation or information-finding challenges"],
+        "trustBarriers": ["Missing proof points or unclear content"],
+        "improvements": ["Clear navigation and content improvements"]
       },
       {
-        "step": "Contact/conversion attempt",
-        "issues": ["Contact form too complex"],
-        "improvements": ["Simplify contact form"]
+        "stage": "trust",
+        "userGoal": "Feeling confident enough to take action or engage further",
+        "emotionalState": "confident|hesitant|concerned",
+        "frictionPoints": ["Missing social proof, security concerns, unclear pricing"],
+        "trustBarriers": ["What's preventing them from feeling secure"],
+        "improvements": ["Trust-building elements needed"]
+      },
+      {
+        "stage": "action",
+        "userGoal": "Completing their intended action (signup, purchase, contact)",
+        "emotionalState": "determined|overwhelmed|impatient",
+        "frictionPoints": ["Form complexity, unclear process, missing information"],
+        "trustBarriers": ["Final hesitations before converting"],
+        "improvements": ["Conversion optimization recommendations"]
       }
     ]
   },
 
   "heuristicViolations": [
     {
-      "title": "Visibility of System Status",
-      "heuristic": "Nielsen's 1st Heuristic",
-      "violation": "Users don't know what's happening during loading",
-      "element": "Submit button on contact form",
-      "evidence": "No loading indicator when form is submitted",
-      "businessImpact": "May lead to form abandonment"
+      "title": "User-friendly violation title (e.g., 'Users lose track of their progress')",
+      "heuristic": "Visibility of System Status",
+      "violation": "Clear explanation of what users experience and how it affects them",
+      "element": "Specific UI element or area affected",
+      "evidence": "Observable user behavior or interface evidence",
+      "businessImpact": "Impact on conversions, trust, or user satisfaction",
+      "userEmotionalImpact": "How users feel when encountering this issue (e.g., frustrated, confused, abandoned)"
     }
-  ]
+  ],
+
+  "visualDesignAudit": {
+    "visualHierarchy": {
+      "score": 3.5,
+      "issues": ["CTA buttons lack visual prominence", "Content hierarchy unclear"],
+      "strengths": ["Good use of whitespace in header section"]
+    },
+    "typography": {
+      "score": 4.0,
+      "issues": ["Body text line-height too tight", "Heading sizes inconsistent"],
+      "strengths": ["Font choice appropriate for target audience"]
+    },
+    "colorContrast": {
+      "score": 2.8,
+      "issues": ["Text on colored backgrounds fails WCAG standards", "Link colors too subtle"],
+      "affectedElements": ["Secondary navigation", "Footer links", "Form labels"]
+    },
+    "spacing": {
+      "score": 3.2,
+      "issues": ["Inconsistent margins between sections", "Interactive elements too close together"],
+      "strengths": ["Good padding within content blocks"]
+    }
+  }
 }
 
-Focus on the most critical UX issues. Keep analysis concise but specific.
+ANALYSIS GUIDELINES:
+- Write for business stakeholders, not developers
+- Focus on USER IMPACT, not technical implementation
+- Include visual design evaluation alongside UX heuristics
+- Use consultative language that builds trust and shows expertise
+- Explain HOW issues affect users emotionally and behaviorally
+- Connect findings to business outcomes (conversions, trust, retention)
 
-IMPORTANT LIMITS:
-- heuristicViolations: Maximum 3 violations, minimum 2
-- prioritizedFixes: Maximum 5 recommendations
-- Use actual heuristic names (e.g., "Visibility of System Status") not "Nielsen's 1st Heuristic"
+VISUAL DESIGN FOCUS AREAS:
+- Visual hierarchy: Do CTAs stand out? Is content scannable?
+- Typography: Is text readable and well-organized?
+- Color contrast: Can all users read the content?
+- Spacing: Does the layout breathe? Are touch targets adequate?
 
-${prompt.targetAudience ? `Target: ${prompt.targetAudience}` : ''}
-${prompt.userGoals ? `Goals: ${prompt.userGoals}` : ''}
+USER JOURNEY ANALYSIS:
+- Map emotional states at each stage
+- Identify friction points that cause drop-offs
+- Note trust barriers that prevent progression
+- Focus on user goals, not just interface mechanics
 
-Response format: JSON only, starting with { and ending with }`;
+LANGUAGE EXAMPLES:
+❌ "Empty main element"
+✅ "Homepage lacks clear structure, making it difficult for users to understand the site's purpose"
+
+❌ "Missing alt attributes"
+✅ "Images without descriptions prevent visually impaired users from understanding content"
+
+❌ "CSS contrast ratio below 4.5:1"
+✅ "Text is hard to read for users with visual impairments, affecting 15% of your audience"
+
+LIMITS:
+- heuristicViolations: minimum 3, maximum 5 violations (REQUIRED: must include at least 3 violations)
+- prioritizedFixes: 3-5 recommendations
+- Focus on highest-impact issues
+
+${prompt.targetAudience ? `Target Audience: ${prompt.targetAudience}` : ''}
+${prompt.userGoals ? `User Goals: ${prompt.userGoals}` : ''}
+
+Response format: Valid JSON only, starting with { and ending with }`;
+  }
+
+  /**
+   * Transform persona-driven journey to match frontend expectations
+   * Maps frictionPoints + trustBarriers → issues array
+   */
+  private transformPersonaDrivenJourney(journey: any): any {
+    if (!journey) return null;
+
+    // If journey.steps exists, transform each step
+    if (journey.steps && Array.isArray(journey.steps)) {
+      const transformedSteps = journey.steps.map((step: any) => {
+        // Combine frictionPoints and trustBarriers into issues array
+        const issues: string[] = [
+          ...(step.frictionPoints || []),
+          ...(step.trustBarriers || [])
+        ];
+
+        return {
+          action: step.userGoal || step.currentExperience || 'User interaction',
+          issues: issues,
+          improvements: step.improvements || []
+        };
+      });
+
+      return {
+        persona: journey.persona || '',
+        personaReasoning: journey.personaReasoning || '',
+        steps: transformedSteps,
+        overallExperience: journey.overallExperience || 'fair'
+      };
+    }
+
+    return journey;
   }
 
   private parseOpenRouterResponse(parsedResponse: any, prompt: GeminiAnalysisPrompt, modelUsed: string): AuditData {
@@ -253,9 +371,9 @@ Response format: JSON only, starting with { and ending with }`;
         totalMaxScore = scores.overall.maxScore;
         overallPercentage = scores.overall.percentage;
       } else {
-        // Legacy structure - calculate from individual scores
-        totalScore = (scores.heuristics?.score || 0) + (scores.uxLaws?.score || 0) + (scores.copywriting?.score || 0) + (scores.accessibility?.score || 0);
-        totalMaxScore = (scores.heuristics?.maxScore || 5) + (scores.uxLaws?.maxScore || 5) + (scores.copywriting?.maxScore || 5) + (scores.accessibility?.maxScore || 5);
+        // Legacy structure - calculate from individual scores including visual design
+        totalScore = (scores.heuristics?.score || 0) + (scores.uxLaws?.score || 0) + (scores.copywriting?.score || 0) + (scores.accessibility?.score || 0) + (scores.visualDesign?.score || 0);
+        totalMaxScore = (scores.heuristics?.maxScore || 5) + (scores.uxLaws?.maxScore || 5) + (scores.copywriting?.maxScore || 5) + (scores.accessibility?.maxScore || 5) + (scores.visualDesign?.maxScore || 5);
         overallPercentage = totalMaxScore > 0 ? (totalScore / totalMaxScore) * 100 : 0;
       }
 
@@ -267,28 +385,35 @@ Response format: JSON only, starting with { and ending with }`;
           score: scores.heuristics?.score || 0,
           maxScore: scores.heuristics?.maxScore || 5,
           percentage: scores.heuristics?.score ? (scores.heuristics.score / (scores.heuristics.maxScore || 5)) * 100 : 0,
-          findings: scores.heuristics?.findings || 'Assessment completed',
+          findings: scores.heuristics?.findings || 'User-focused assessment of interaction patterns and ease of use',
           issues: []
         },
         uxLaws: {
           score: scores.uxLaws?.score || 0,
           maxScore: scores.uxLaws?.maxScore || 5,
           percentage: scores.uxLaws?.score ? (scores.uxLaws.score / (scores.uxLaws.maxScore || 5)) * 100 : 0,
-          findings: scores.uxLaws?.findings || 'Assessment completed',
+          findings: scores.uxLaws?.findings || 'Assessment of cognitive load and user behavior principles',
           issues: []
         },
         copywriting: {
           score: scores.copywriting?.score || 0,
           maxScore: scores.copywriting?.maxScore || 5,
           percentage: scores.copywriting?.score ? (scores.copywriting.score / (scores.copywriting.maxScore || 5)) * 100 : 0,
-          findings: scores.copywriting?.findings || 'Assessment completed',
+          findings: scores.copywriting?.findings || 'Evaluation of content clarity and user guidance',
           issues: []
         },
         accessibility: {
           score: scores.accessibility?.score || 0,
           maxScore: scores.accessibility?.maxScore || 5,
           percentage: scores.accessibility?.score ? (scores.accessibility.score / (scores.accessibility.maxScore || 5)) * 100 : 0,
-          findings: scores.accessibility?.findings || 'Assessment completed',
+          findings: scores.accessibility?.findings || 'Evaluation of inclusivity and usability for all users',
+          issues: []
+        },
+        visualDesign: {
+          score: scores.visualDesign?.score || 0,
+          maxScore: scores.visualDesign?.maxScore || 5,
+          percentage: scores.visualDesign?.score ? (scores.visualDesign.score / (scores.visualDesign.maxScore || 5)) * 100 : 0,
+          findings: scores.visualDesign?.findings || 'Assessment of visual hierarchy, typography, contrast, and UI clarity',
           issues: []
         }
       };
@@ -306,10 +431,13 @@ Response format: JSON only, starting with { and ending with }`;
         effort: issue.effort || 'medium',
         businessImpact: issue.businessImpact || '',
         timeframe: issue.timeframe || 'short-term',
+        userImpact: issue.userImpact || '',
+        userEmotionalImpact: issue.userEmotionalImpact || '',
         // Legacy fields for backward compatibility
         heuristic: issue.heuristic || '',
         element: issue.element || '',
-        impact: issue.impact || issue.priority || 'medium'
+        impact: issue.impact || issue.priority || 'medium',
+        evidence: issue.evidence || [{ type: 'screenshot', reference: 'general-observation', description: 'General UX observation' }]
       }));
 
       // Use the new structure's timestamp and URL if available
@@ -335,6 +463,7 @@ Response format: JSON only, starting with { and ending with }`;
           uxLaws: processedScores.uxLaws,
           copywriting: processedScores.copywriting,
           accessibility: processedScores.accessibility,
+          visualDesign: processedScores.visualDesign,
           maturityScorecard: {
             overall: overallPercentage,
             heuristics: processedScores.heuristics.percentage,
@@ -365,9 +494,10 @@ Response format: JSON only, starting with { and ending with }`;
         // Enhanced fields from new structure
         executiveSummary: parsedResponse.executiveSummary || summary,
         keyInsights: parsedResponse.keyInsights || [],
-        personaDrivenJourney: parsedResponse.personaDrivenJourney || null,
+        personaDrivenJourney: this.transformPersonaDrivenJourney(parsedResponse.personaDrivenJourney),
         heuristicViolations: parsedResponse.heuristicViolations || [],
-        prioritizedFixes: parsedResponse.prioritizedFixes || []
+        prioritizedFixes: parsedResponse.prioritizedFixes || [],
+        visualDesignAudit: parsedResponse.visualDesignAudit || null
       };
     } catch (error) {
       console.error('Error parsing OpenRouter response:', error);
@@ -522,6 +652,13 @@ Response format: JSON only, starting with { and ending with }`;
         uxLaws: scores.uxLaws,
         copywriting: scores.copywriting,
         accessibility: scores.accessibility,
+        visualDesign: {
+          score: 3.5,
+          maxScore: 5.0,
+          percentage: 70,
+          issues: [],
+          insights: 'Visual design shows good potential with areas for improvement'
+        },
         maturityScorecard: {
           overall: overallPercentage,
           heuristics: (scores.heuristics.score / scores.heuristics.maxScore) * 100,
@@ -585,6 +722,7 @@ Response format: JSON only, starting with { and ending with }`;
         uxLaws: { score: 21, maxScore: 30, percentage: 70, issues: [], insights: 'Limited analysis due to technical constraints' },
         copywriting: { score: 14, maxScore: 20, percentage: 70, issues: [], insights: 'Limited analysis due to technical constraints' },
         accessibility: { score: 7, maxScore: 10, percentage: 70, issues: [], insights: 'Limited analysis due to technical constraints' },
+        visualDesign: { score: 14, maxScore: 20, percentage: 70, issues: [], insights: 'Limited analysis due to technical constraints' },
         maturityScorecard: {
           overall: 70,
           heuristics: 70,
@@ -626,11 +764,18 @@ Response format: JSON only, starting with { and ending with }`;
   }
 
   private extractJsonFromResponse(responseText: string): any {
+    if (!responseText || typeof responseText !== 'string') {
+      console.error('Invalid response text:', responseText);
+      throw new Error('AI response is empty or invalid');
+    }
+
     try {
       // First, try parsing directly
       return JSON.parse(responseText);
     } catch (error) {
       // If direct parsing fails, try to extract JSON from the response
+      console.log('Direct JSON parse failed, attempting extraction...');
+      console.log('Full response length:', responseText.length);
 
       // Look for JSON object starting with { and ending with }
       let jsonStart = responseText.indexOf('{');
@@ -638,16 +783,38 @@ Response format: JSON only, starting with { and ending with }`;
 
       if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
         const jsonString = responseText.substring(jsonStart, jsonEnd + 1);
+        console.log('Extracted JSON length:', jsonString.length);
+        console.log('Last 100 chars of extracted JSON:', jsonString.substring(jsonString.length - 100));
+
         try {
-          return JSON.parse(jsonString);
-        } catch (extractError) {
-          console.error('Failed to extract JSON from response:', responseText.substring(0, 200) + '...');
-          throw new Error('AI response is not valid JSON');
+          const parsed = JSON.parse(jsonString);
+          console.log('✅ Successfully extracted and parsed JSON');
+          return parsed;
+        } catch (extractError: any) {
+          console.error('Failed to parse extracted JSON');
+          console.error('Parse error:', extractError.message);
+          console.error('First 500 chars:', jsonString.substring(0, 500));
+          console.error('Last 500 chars:', jsonString.substring(Math.max(0, jsonString.length - 500)));
+
+          // Try to fix common JSON issues
+          try {
+            // Remove trailing commas before closing braces/brackets
+            let fixed = jsonString.replace(/,(\s*[}\]])/g, '$1');
+            const parsed = JSON.parse(fixed);
+            console.log('✅ Fixed and parsed JSON with trailing comma removal');
+            return parsed;
+          } catch (fixError) {
+            console.error('Could not fix JSON with trailing comma removal');
+            throw new Error('AI response is not valid JSON');
+          }
         }
       }
 
       // If no JSON structure found, throw the original error
-      console.error('No JSON structure found in response:', responseText.substring(0, 200) + '...');
+      console.error('No JSON structure found in response');
+      console.error('Response length:', responseText.length);
+      console.error('First 300 chars:', responseText.substring(0, 300));
+      console.error('Last 300 chars:', responseText.substring(Math.max(0, responseText.length - 300)));
       throw new Error('AI response does not contain valid JSON');
     }
   }

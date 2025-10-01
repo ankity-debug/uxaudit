@@ -35,35 +35,40 @@ export class HtmlParserService {
 
   /**
    * Fetch and parse HTML content for multiple URLs with token optimization
+   * OPTIMIZED: Parses all URLs in parallel instead of sequentially
    */
   async parseMultiplePages(urls: string[]): Promise<PageContext[]> {
-    const contexts: PageContext[] = [];
+    console.log(`🔄 Parsing ${urls.length} pages in parallel...`);
 
-    for (const url of urls) {
+    const parsePromises = urls.map(async (url) => {
       try {
-        console.log(`Parsing content for: ${url}`);
+        console.log(`  → Parsing: ${url}`);
         const context = await this.parseSinglePage(url);
-        contexts.push(context);
+        console.log(`  ✅ Parsed: ${url}`);
+        return context;
       } catch (error) {
-        console.error(`Failed to parse ${url}:`, error);
-        // Add minimal context even if parsing fails
-        contexts.push(this.createFallbackContext(url));
+        console.error(`  ❌ Failed to parse ${url}:`, error);
+        return this.createFallbackContext(url);
       }
-    }
+    });
 
-    return contexts;
+    // Wait for all pages to be parsed in parallel
+    return Promise.all(parsePromises);
   }
 
   /**
    * Parse single page with optimized content extraction
+   * ULTRA-OPTIMIZED: Reduced timeout from 15s to 8s
    */
   private async parseSinglePage(url: string): Promise<PageContext> {
-    // Fetch HTML content
+    // Fetch HTML content with aggressive timeout
     const response = await axios.get(url, {
-      timeout: 15000,
+      timeout: 8000, // REDUCED from 15s to 8s
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-      }
+      },
+      maxRedirects: 3,
+      validateStatus: (status) => status < 400
     });
 
     const dom = new JSDOM(response.data);

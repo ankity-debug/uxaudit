@@ -1,7 +1,7 @@
 {
-  "name": "ux-audit-platform",
+  "name": "lycheelens-audit-platform",
   "version": "1.0.0",
-  "description": "AI-powered UX audit platform using Gemini AI",
+  "description": "lycheeLens - AI-powered UX audit platform for instant design insights",
   "main": "index.js",
   "scripts": {
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
@@ -19,7 +19,7 @@
     "gemini",
     "design"
   ],
-  "author": "LY Design",
+  "author": "lycheeLens",
   "license": "MIT",
   "devDependencies": {
     "concurrently": "^8.2.0"

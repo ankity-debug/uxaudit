@@ -39,7 +39,7 @@ export const IssuesList: React.FC<IssuesListProps> = ({
     return (
       <div className="bg-white rounded-lg shadow-sm p-8">
         <div className="flex items-center space-x-2 mb-6">
-          <span className="text-yellow-500 text-xl">
+          <span className="text-pink-500 text-xl">
             {showAsViolations ? '⚠️' : '🔧'}
           </span>
           <h2 className="text-xl font-bold text-gray-800">{title}</h2>
@@ -49,9 +49,9 @@ export const IssuesList: React.FC<IssuesListProps> = ({
         )}
         <div className="space-y-4">
           {issues.slice(0, 5).map((issue, index) => (
-            <div key={issue.id} className="border-l-4 border-yellow-400 pl-4 py-2">
+            <div key={issue.id} className="border-l-4 border-pink-400 pl-4 py-2">
               <div className="flex items-start space-x-3">
-                <div className="w-6 h-6 bg-yellow-400 text-gray-800 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 mt-0.5">
+                <div className="w-6 h-6 bg-pink-500 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 mt-0.5">
                   {index + 1}
                 </div>
                 <div className="flex-1">

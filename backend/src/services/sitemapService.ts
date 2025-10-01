@@ -47,10 +47,11 @@ export class SitemapService {
 
   /**
    * Fetch and parse sitemap from URL
+   * OPTIMIZED: Reduced timeout from 10s to 5s
    */
   private async fetchSitemap(sitemapUrl: string): Promise<SitemapUrl[]> {
     const response = await axios.get(sitemapUrl, {
-      timeout: 10000,
+      timeout: 5000, // Reduced from 10s to 5s
       headers: { 'User-Agent': 'UX-Audit-Bot/1.0' }
     });
 

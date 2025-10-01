@@ -1,0 +1,5 @@
+[dotenv@17.2.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+🚀 UX Audit Platform API running on port 3001
+📊 Environment: development
+🎯 Gemini AI: Not configured
+🌐 CORS origin: http://localhost:3000

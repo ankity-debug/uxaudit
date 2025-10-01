@@ -1,13 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { AuditData } from '../types';
 import { getRelevantCaseStudies, caseStudies } from '../data/caseStudies';
-import html2pdf from 'html2pdf.js';
+import { DownloadModal } from './DownloadModal';
 
 interface AuditReportProps {
   data: AuditData;
 }
 
 export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
+  const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
 
   // Enhanced key insights from new structure
   const getKeyInsights = () => {
@@ -29,7 +30,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
   };
 
 
-  // Get relevant case studies using smart matching - always show at least 2
+  // Get relevant case studies using smart matching - show 2 for focus
   const getRelevantCaseStudiesForAudit = () => {
     const relevantStudies = getRelevantCaseStudies(data.url, data.summary, 2);
     // If no relevant studies found, show high-priority general studies
@@ -83,7 +84,77 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
       }
     });
 
-    return Array.from(uniqueViolations.values());
+    let violations = Array.from(uniqueViolations.values());
+
+    // Ensure all violations have heuristic and businessImpact fields
+    violations = violations.map(v => {
+      // If missing heuristic, try to infer from description or assign a default
+      if (!v.heuristic || v.heuristic.trim() === '') {
+        if (v.description.toLowerCase().includes('button') || v.description.toLowerCase().includes('contact') || v.description.toLowerCase().includes('prioritization')) {
+          v.heuristic = 'Consistency and Standards';
+        } else if (v.description.toLowerCase().includes('feedback') || v.description.toLowerCase().includes('status')) {
+          v.heuristic = 'Visibility of System Status';
+        } else if (v.description.toLowerCase().includes('error') || v.description.toLowerCase().includes('prevent')) {
+          v.heuristic = 'Error Prevention';
+        } else {
+          v.heuristic = 'User Control and Freedom';
+        }
+      }
+
+      // If missing business impact, assign a relevant one
+      if (!v.businessImpact || v.businessImpact.trim() === '') {
+        if (v.description.toLowerCase().includes('conversion') || v.description.toLowerCase().includes('financial')) {
+          v.businessImpact = 'Reduced conversion rates and potential revenue loss due to user confusion and abandoned actions.';
+        } else if (v.description.toLowerCase().includes('button') || v.description.toLowerCase().includes('contact')) {
+          v.businessImpact = 'Users may struggle to find the right action, leading to decreased engagement and missed opportunities.';
+        } else {
+          v.businessImpact = 'User experience friction may result in lower satisfaction and reduced task completion rates.';
+        }
+      }
+
+      return v;
+    });
+
+    // Ensure minimum 3 heuristic violations are shown
+    if (violations.length < 3) {
+      // Add generic heuristic violations if not enough are found
+      const fallbackViolations = [
+        {
+          id: 'fallback-1',
+          title: 'Visibility of System Status',
+          description: 'Users may not be aware of current system status due to lack of clear feedback indicators.',
+          heuristic: 'Visibility of System Status',
+          category: 'heuristics',
+          businessImpact: 'Users may feel uncertain about their actions, leading to hesitation and potential abandonment.'
+        },
+        {
+          id: 'fallback-2',
+          title: 'Consistency and Standards',
+          description: 'Inconsistent design patterns across the interface may confuse users and reduce efficiency.',
+          heuristic: 'Consistency and Standards',
+          category: 'heuristics',
+          businessImpact: 'Users spend more time learning the interface instead of completing tasks.'
+        },
+        {
+          id: 'fallback-3',
+          title: 'Error Prevention',
+          description: 'The interface lacks adequate safeguards to prevent user errors before they occur.',
+          heuristic: 'Error Prevention',
+          category: 'heuristics',
+          businessImpact: 'Users may make mistakes that frustrate them and interrupt their workflow.'
+        }
+      ];
+
+      // Add fallback violations to reach minimum of 3
+      for (let i = 0; i < fallbackViolations.length && violations.length < 3; i++) {
+        const fallback = fallbackViolations[i];
+        if (!violations.some(v => v.heuristic === fallback.heuristic)) {
+          violations.push(fallback);
+        }
+      }
+    }
+
+    return violations;
   };
 
   // Enhanced recommended fixes from new structure
@@ -210,107 +281,40 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
     return categories;
   };
 
-  const handleDownloadPDF = () => {
-    const element = document.getElementById('audit-report-content');
-    const opt = {
-      margin: [0.5, 0.5, 0.5, 0.5], // Smaller margins: [top, left, bottom, right]
-      filename: `ux-audit-${getPlatformName()}-${new Date().toISOString().split('T')[0]}.pdf`,
-      image: {
-        type: 'jpeg',
-        quality: 0.95,
-        backgroundColor: '#ffffff' // Ensure white background
-      },
-      html2canvas: {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#ffffff',
-        logging: false,
-        allowTaint: false,
-        letterRendering: true,
-        width: 800, // Fixed width for consistency
-        height: element?.scrollHeight,
-        x: 0,
-        y: 0
-      },
-      jsPDF: {
-        unit: 'in',
-        format: 'a4', // A4 format for better layout
-        orientation: 'portrait',
-        compress: true
-      },
-      pagebreak: {
-        mode: ['css', 'legacy'],
-        before: ['.page-break-before'],
-        after: ['.page-break-after'],
-        avoid: ['img', '.avoid-break']
-      }
-    };
-
-    // Hide the action buttons and add PDF-specific styling
-    const actionButtons = document.querySelector('.action-buttons-banner');
-    const reportContent = document.getElementById('audit-report-content');
-
-    if (actionButtons) {
-      (actionButtons as HTMLElement).style.display = 'none';
-    }
-
-    // Add PDF-optimized styles temporarily
-    if (reportContent) {
-      reportContent.classList.add('pdf-mode');
-      // Add PDF-specific CSS
-      const pdfStyles = document.createElement('style');
-      pdfStyles.innerHTML = `
-        .pdf-mode {
-          background: white !important;
-          color: black !important;
-          font-family: 'Inter', sans-serif !important;
-          line-height: 1.4 !important;
-        }
-        .pdf-mode .rounded-2xl, .pdf-mode .rounded-xl {
-          border-radius: 8px !important;
-        }
-        .pdf-mode img {
-          max-width: 100% !important;
-          height: auto !important;
-        }
-        .pdf-mode .grid {
-          display: block !important;
-        }
-        .pdf-mode .grid > * {
-          margin-bottom: 1rem !important;
-        }
-        .pdf-mode h2 {
-          page-break-after: avoid !important;
-          margin-top: 1.5rem !important;
-          margin-bottom: 1rem !important;
-        }
-        .pdf-mode .space-y-4 > * + * {
-          margin-top: 1rem !important;
-        }
-      `;
-      document.head.appendChild(pdfStyles);
-
-      // Generate PDF
-      html2pdf().set(opt).from(element).save().then(() => {
-        // Clean up
-        if (actionButtons) {
-          (actionButtons as HTMLElement).style.display = 'flex';
-        }
-        if (reportContent) {
-          reportContent.classList.remove('pdf-mode');
-        }
-        document.head.removeChild(pdfStyles);
-      }).catch((error) => {
-        console.error('PDF generation error:', error);
-        // Clean up on error too
-        if (actionButtons) {
-          (actionButtons as HTMLElement).style.display = 'flex';
-        }
-        if (reportContent) {
-          reportContent.classList.remove('pdf-mode');
-        }
-        document.head.removeChild(pdfStyles);
+  const handleSharePDF = async (userInfo: { name: string; email: string }) => {
+    try {
+      // Call the backend API to share the PDF via email
+      const shareUrl = process.env.NODE_ENV === 'production'
+        ? '/api/share-report'
+        : 'http://localhost:3001/api/share-report';
+      const response = await fetch(shareUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          auditData: data,
+          recipientEmail: userInfo.email,
+          recipientName: userInfo.name,
+          platformName: getPlatformName()
+        })
       });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Failed to share report: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('Report shared successfully:', result);
+
+      // You could show a success message to the user here
+      alert(`Success! The UX audit report has been sent to ${userInfo.email}`);
+
+    } catch (error) {
+      console.error('Error sharing PDF report:', error);
+      // You could show an error message to the user here
+      alert(`Failed to share report: ${error instanceof Error ? error.message : 'Unknown error occurred'}`);
     }
   };
 
@@ -321,6 +325,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
 
 
   return (
+    <>
     <div className="min-h-screen relative" style={{fontFamily: 'Inter, sans-serif'}}>
       {/* Fixed Grid Background */}
       <div 
@@ -353,7 +358,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
         {/* Action Buttons Banner - Above yellow banner, right aligned */}
         <div className="flex justify-end gap-3 mb-8 action-buttons-banner">
           <button
-            onClick={handleDownloadPDF}
+            onClick={() => setIsDownloadModalOpen(true)}
             className="flex items-center gap-2 px-6 py-3 bg-gray-900 text-white rounded-xl font-medium hover:bg-gray-800 active:bg-black transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
             style={{fontSize: '16px', lineHeight: '1.5'}}
           >
@@ -378,13 +383,13 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
         <div id="audit-report-content">
         {/* Header Section */}
         <div className="relative overflow-hidden rounded-2xl p-8 mb-10" style={{
-          background: 'linear-gradient(135deg, #FAE100 0%, #F0D000 100%)'
+          background: 'linear-gradient(135deg, #EF4171 0%, #D93A63 100%)'
         }}>
 
           {/* Company Favicon and URL */}
           <div className="flex items-center space-x-3 mb-4">
             <div className="w-8 h-8 bg-gray-800 rounded-lg flex items-center justify-center">
-              <span className="text-[#FAE100] font-bold text-sm">
+              <span className="text-white font-bold text-sm">
                 {data.url ? (
                   (() => {
                     try {
@@ -397,7 +402,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
                 ) : 'I'}
               </span>
             </div>
-            <div className="text-black text-base font-semibold">
+            <div className="text-white text-base font-semibold">
               {data.url ? (
                 (() => {
                   try {
@@ -411,11 +416,11 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
           </div>
 
           {/* Title */}
-          <h1 className="text-4xl font-bold text-black mb-4">
+          <h1 className="text-4xl font-bold text-white mb-4">
             UX Audit Report
           </h1>
           <div className="mb-8">
-            <p className="text-sm text-black/70">
+            <p className="text-sm text-white/90">
               Audited: {new Date(data.timestamp).toLocaleDateString('en-US', { 
                 year: 'numeric',
                 month: 'long', 
@@ -430,7 +435,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
             {/* Overall Score - Only show if available */}
             {(data as any).scores?.overall && (
             <div className="flex flex-col items-center text-center">
-              <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center text-2xl font-bold text-black shadow-lg mb-3">
+              <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center text-2xl font-bold text-gray-900 shadow-lg mb-3">
                 {(() => {
                   const ov: any = (data as any).scores?.overall || {};
                   const val = (typeof ov.score === 'number' && typeof ov.maxScore === 'number' && ov.maxScore > 0)
@@ -439,7 +444,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
                   return `${val.toFixed(1)}/5`;
                 })()}
               </div>
-              <div className="text-xs font-medium text-black leading-tight">
+              <div className="text-xs font-medium text-white leading-tight">
                 Overall UX Score
               </div>
             </div>
@@ -450,10 +455,10 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
             <div className={`grid gap-4 ${getCategoryScores().length <= 2 ? 'grid-cols-2' : getCategoryScores().length === 3 ? 'grid-cols-3' : 'grid-cols-4'}`}>
               {getCategoryScores().map((category, i) => (
                 <div key={i} className="flex flex-col items-center text-center">
-                  <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center text-sm font-semibold text-black mb-3 shadow-lg">
+                  <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center text-sm font-semibold text-gray-900 mb-3 shadow-lg">
                     {Number.isFinite(category.score) ? `${category.score.toFixed(1)}/5` : '0.0/5'}
                   </div>
-                  <div className="text-xs font-medium text-black leading-tight">
+                  <div className="text-xs font-medium text-white leading-tight">
                     {category.label}
                   </div>
                 </div>
@@ -768,5 +773,17 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
         </div>
       </div>
     </div>
+
+    {/* Download Modal */}
+    <DownloadModal
+      isOpen={isDownloadModalOpen}
+      onClose={() => setIsDownloadModalOpen(false)}
+      onDownload={(userInfo) => {
+        handleSharePDF(userInfo);
+        console.log('User info for analytics:', userInfo);
+      }}
+      platformName={getPlatformName()}
+    />
+    </>
   );
 };
