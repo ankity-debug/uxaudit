@@ -3,7 +3,7 @@ import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import { AuditController } from './controllers/auditController';
 import { upload } from './utils/multerConfig';
-
+import path from 'path';
 const app = express();
 
 // Configure CORS origins from environment
@@ -100,5 +100,17 @@ app.post('/api/audit', auditLimiter, upload.single('image'), auditController.aud
 
 // Share audit report via email (also rate limited as it's resource intensive)
 app.post('/api/share-report', auditLimiter, auditController.shareAuditReport);
+
+// Absolute path to the frontend build
+const frontendBuild = path.resolve(__dirname, "..", "..", "frontend", "build");
+
+// Serve static assets
+app.use(express.static(frontendBuild));
+
+// SPA fallback: always return index.html
+app.get("*", (req, res) => {
+  res.sendFile(path.join(frontendBuild, "index.html"));
+});
+
 
 export default app;
