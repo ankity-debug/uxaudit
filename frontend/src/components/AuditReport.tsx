@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import { AuditData } from '../types';
 import { getRelevantCaseStudies, caseStudies } from '../data/caseStudies';
-import { DownloadModal } from './DownloadModal';
+import { getUserData } from '../utils/userStorage';
 
 interface AuditReportProps {
   data: AuditData;
 }
 
+type DownloadStatus = 'idle' | 'sending' | 'sent';
+
 export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
-  const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
+  const [downloadStatus, setDownloadStatus] = useState<DownloadStatus>('idle');
 
   // Enhanced key insights from new structure
   const getKeyInsights = () => {
@@ -281,12 +283,27 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
     return categories;
   };
 
-  const handleSharePDF = async (userInfo: { name: string; email: string }) => {
+  const handleDownloadPDF = async () => {
+    // Prevent multiple clicks
+    if (downloadStatus !== 'idle') return;
+
+    // Get user data from storage (saved during form submission)
+    const userInfo = getUserData();
+
+    if (!userInfo) {
+      alert('User information not found. Please go back and submit the form again.');
+      return;
+    }
+
+    // Set to sending state
+    setDownloadStatus('sending');
+
     try {
-      // Call the backend API to share the PDF via email
+      // Call the backend API to share the PDF via email using Brevo
       const shareUrl = process.env.NODE_ENV === 'production'
         ? '/api/share-report'
         : 'http://localhost:3001/api/share-report';
+
       const response = await fetch(shareUrl, {
         method: 'POST',
         headers: {
@@ -308,13 +325,14 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
       const result = await response.json();
       console.log('Report shared successfully:', result);
 
-      // You could show a success message to the user here
-      alert(`Success! The UX audit report has been sent to ${userInfo.email}`);
+      // Set to sent state
+      setDownloadStatus('sent');
 
     } catch (error) {
       console.error('Error sharing PDF report:', error);
-      // You could show an error message to the user here
       alert(`Failed to share report: ${error instanceof Error ? error.message : 'Unknown error occurred'}`);
+      // Reset to idle on error so user can retry
+      setDownloadStatus('idle');
     }
   };
 
@@ -358,15 +376,43 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
         {/* Action Buttons Banner - Above yellow banner, right aligned */}
         <div className="flex justify-end gap-3 mb-8 action-buttons-banner">
           <button
-            onClick={() => setIsDownloadModalOpen(true)}
-            className="flex items-center gap-2 px-6 py-3 bg-gray-900 text-white rounded-xl font-medium hover:bg-gray-800 active:bg-black transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
+            onClick={handleDownloadPDF}
+            disabled={downloadStatus !== 'idle'}
+            className={`flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 bg-gray-900 text-white min-w-[180px] ${
+              downloadStatus === 'idle'
+                ? 'hover:bg-gray-800 active:bg-black transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer'
+                : downloadStatus === 'sending'
+                ? 'opacity-70 cursor-wait'
+                : 'cursor-not-allowed'
+            }`}
             style={{fontSize: '16px', lineHeight: '1.5'}}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 16L7 11L8.4 9.6L11 12.2V4H13V12.2L15.6 9.6L17 11L12 16Z" fill="currentColor"/>
-              <path d="M5 20V18H19V20H5Z" fill="currentColor"/>
-            </svg>
-            Download PDF
+            {downloadStatus === 'idle' && (
+              <>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="flex-shrink-0">
+                  <path d="M12 16L7 11L8.4 9.6L11 12.2V4H13V12.2L15.6 9.6L17 11L12 16Z" fill="currentColor"/>
+                  <path d="M5 20V18H19V20H5Z" fill="currentColor"/>
+                </svg>
+                <span>Download PDF</span>
+              </>
+            )}
+            {downloadStatus === 'sending' && (
+              <>
+                <svg className="animate-spin h-4 w-4 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>Sending...</span>
+              </>
+            )}
+            {downloadStatus === 'sent' && (
+              <>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="flex-shrink-0">
+                  <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" fill="currentColor"/>
+                </svg>
+                <span>Sent</span>
+              </>
+            )}
           </button>
           <button
             onClick={handleNewAudit}
@@ -382,8 +428,9 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
 
         <div id="audit-report-content">
         {/* Header Section */}
-        <div className="relative overflow-hidden rounded-2xl p-8 mb-10" style={{
-          background: 'linear-gradient(135deg, #EF4171 0%, #D93A63 100%)'
+        <div className="relative overflow-hidden rounded-2xl p-8 mb-10 border-2" style={{
+          backgroundColor: '#FEF5F7',
+          borderColor: '#E23D69'
         }}>
 
           {/* Company Favicon and URL */}
@@ -402,7 +449,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
                 ) : 'I'}
               </span>
             </div>
-            <div className="text-white text-base font-semibold">
+            <div className="text-gray-900 text-base font-semibold">
               {data.url ? (
                 (() => {
                   try {
@@ -416,15 +463,15 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
           </div>
 
           {/* Title */}
-          <h1 className="text-4xl font-bold text-white mb-4">
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">
             UX Audit Report
           </h1>
           <div className="mb-8">
-            <p className="text-sm text-white/90">
-              Audited: {new Date(data.timestamp).toLocaleDateString('en-US', { 
+            <p className="text-sm text-gray-700">
+              Audited: {new Date(data.timestamp).toLocaleDateString('en-US', {
                 year: 'numeric',
-                month: 'long', 
-                day: 'numeric' 
+                month: 'long',
+                day: 'numeric'
               })}
             </p>
           </div>
@@ -444,7 +491,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
                   return `${val.toFixed(1)}/5`;
                 })()}
               </div>
-              <div className="text-xs font-medium text-white leading-tight">
+              <div className="text-xs font-medium text-gray-900 leading-tight">
                 Overall UX Score
               </div>
             </div>
@@ -458,7 +505,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
                   <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center text-sm font-semibold text-gray-900 mb-3 shadow-lg">
                     {Number.isFinite(category.score) ? `${category.score.toFixed(1)}/5` : '0.0/5'}
                   </div>
-                  <div className="text-xs font-medium text-white leading-tight">
+                  <div className="text-xs font-medium text-gray-900 leading-tight">
                     {category.label}
                   </div>
                 </div>
@@ -774,16 +821,6 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
       </div>
     </div>
 
-    {/* Download Modal */}
-    <DownloadModal
-      isOpen={isDownloadModalOpen}
-      onClose={() => setIsDownloadModalOpen(false)}
-      onDownload={(userInfo) => {
-        handleSharePDF(userInfo);
-        console.log('User info for analytics:', userInfo);
-      }}
-      platformName={getPlatformName()}
-    />
     </>
   );
 };

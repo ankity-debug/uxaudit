@@ -1,7 +1,9 @@
 import React, { useState, KeyboardEvent, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Upload, Globe, CheckCircle } from 'lucide-react';
+import { Upload, Globe, CheckCircle, User, Mail } from 'lucide-react';
 import { Header } from './Header';
+import LycheeBrandingPopup from './LycheeBrandingPopup';
+import { saveUserData, validateEmail, validateName } from '../utils/userStorage';
 
 interface AuditFormProps {
   onSubmit: (input: { type: 'url' | 'image'; value: string | File }) => void;
@@ -16,6 +18,10 @@ export const AuditForm: React.FC<AuditFormProps> = ({ onSubmit, isLoading }) => 
   const [error, setError] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
+
+  // User data fields
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
 
   const loadingSteps = [
     'Analyzing interface...',
@@ -93,10 +99,30 @@ export const AuditForm: React.FC<AuditFormProps> = ({ onSubmit, isLoading }) => 
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    
+
+    // Validate name
+    if (!validateName(name)) {
+      setError('Please enter your full name (at least 2 characters)');
+      return;
+    }
+
+    // Validate email
+    if (!validateEmail(email)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
+    // Save user data to storage (will be replaced with DB later)
+    try {
+      await saveUserData({ name, email });
+    } catch (err) {
+      setError('Failed to save user data. Please try again.');
+      return;
+    }
+
     if (activeTab === 'url') {
       if (!url.trim()) {
         setError('Please enter a valid URL');
@@ -120,38 +146,49 @@ export const AuditForm: React.FC<AuditFormProps> = ({ onSubmit, isLoading }) => 
     }
   };
 
-  const isFormValid = (activeTab === 'url' && url.trim()) || (activeTab === 'image' && uploadedFile);
+  const isFormValid =
+    name.trim() &&
+    email.trim() &&
+    ((activeTab === 'url' && url.trim()) || (activeTab === 'image' && uploadedFile));
 
   return (
-    <div 
-      className={`min-h-screen relative ${
-        activeTab === 'image' && isDragging ? 'bg-blue-50' : ''
-      }`}
-      style={{
-        fontFamily: 'Inter, sans-serif',
-        background: activeTab === 'image' && isDragging ? 'rgba(59, 130, 246, 0.05)' : `
-          /* overlay on top (semi-transparent) */
-          radial-gradient(circle at 35% 25%,
-            rgba(255,255,255,0.85) 0%,
-            rgba(255,255,255,0.70) 45%,
-            rgba(255,255,255,0.45) 70%,
-            rgba(255,255,255,0.25) 100%),
-          /* grid underneath */
-          repeating-linear-gradient(0deg,
-            rgba(15,23,42,0.14) 0, rgba(15,23,42,0.14) 1px,
-            transparent 1px, transparent 56px),
-          repeating-linear-gradient(90deg,
-            rgba(15,23,42,0.14) 0, rgba(15,23,42,0.14) 1px,
-            transparent 1px, transparent 56px)
-        `,
-        backgroundSize: 'auto, auto, auto',
-        backgroundRepeat: 'no-repeat, repeat, repeat'
-      }}
-      onDragEnter={handleDragEnter}
-      onDragLeave={handleDragLeave}
-      onDragOver={handleDragOver}
-      onDrop={handleDrop}
-    >
+    <>
+      {/* Lychee Branding Popup */}
+      <LycheeBrandingPopup
+        isVisible={isLoading}
+        loadingStep={loadingStep}
+        loadingSteps={loadingSteps}
+      />
+
+      <div
+        className={`min-h-screen relative ${
+          activeTab === 'image' && isDragging ? 'bg-blue-50' : ''
+        }`}
+        style={{
+          fontFamily: 'Inter, sans-serif',
+          background: activeTab === 'image' && isDragging ? 'rgba(59, 130, 246, 0.05)' : `
+            /* overlay on top (semi-transparent) */
+            radial-gradient(circle at 35% 25%,
+              rgba(255,255,255,0.85) 0%,
+              rgba(255,255,255,0.70) 45%,
+              rgba(255,255,255,0.45) 70%,
+              rgba(255,255,255,0.25) 100%),
+            /* grid underneath */
+            repeating-linear-gradient(0deg,
+              rgba(15,23,42,0.14) 0, rgba(15,23,42,0.14) 1px,
+              transparent 1px, transparent 56px),
+            repeating-linear-gradient(90deg,
+              rgba(15,23,42,0.14) 0, rgba(15,23,42,0.14) 1px,
+              transparent 1px, transparent 56px)
+          `,
+          backgroundSize: 'auto, auto, auto',
+          backgroundRepeat: 'no-repeat, repeat, repeat'
+        }}
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+      >
       
       <div className="relative z-10">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
@@ -196,9 +233,67 @@ export const AuditForm: React.FC<AuditFormProps> = ({ onSubmit, isLoading }) => 
             >
               <div className="w-full max-w-md">
                 <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8">
-                  
-                  {/* Segmented Tabs */}
-                  <div className="relative flex bg-gray-100 rounded-xl p-1 mb-6" role="tablist" aria-label="Audit input method">
+
+                  {/* User Info Section */}
+                  <div className="mb-6">
+                    <h3 className="text-sm font-semibold text-gray-900 mb-4">
+                      Share your details
+                    </h3>
+                    <div className="space-y-4">
+                      {/* Name Field */}
+                      <div>
+                      <label htmlFor="name-input" className="sr-only">
+                        Your full name
+                      </label>
+                      <div className="relative">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                          <User className="w-4 h-4 text-gray-400" />
+                        </div>
+                        <input
+                          id="name-input"
+                          type="text"
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
+                          placeholder="Your full name"
+                          className="w-full h-[52px] pl-11 pr-4 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:bg-white transition-all"
+                          disabled={isLoading}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    {/* Email Field */}
+                    <div>
+                      <label htmlFor="email-input" className="sr-only">
+                        Your email address
+                      </label>
+                      <div className="relative">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                          <Mail className="w-4 h-4 text-gray-400" />
+                        </div>
+                        <input
+                          id="email-input"
+                          type="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          placeholder="your.email@example.com"
+                          className="w-full h-[52px] pl-11 pr-4 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:bg-white transition-all"
+                          disabled={isLoading}
+                          required
+                        />
+                      </div>
+                    </div>
+                    </div>
+                  </div>
+
+                  {/* Audit Input Section */}
+                  <div className="mb-6">
+                    <h3 className="text-sm font-semibold text-gray-900 mb-4">
+                      What would you like LycheeLens to audit?
+                    </h3>
+
+                    {/* Segmented Tabs */}
+                    <div className="relative flex bg-gray-100 rounded-xl p-1 mb-4" role="tablist" aria-label="Audit input method">
                     {/* Animated Background */}
                     <motion.div
                       className="absolute top-1 bottom-1 bg-white rounded-lg shadow-sm"
@@ -251,7 +346,6 @@ export const AuditForm: React.FC<AuditFormProps> = ({ onSubmit, isLoading }) => 
                     </button>
                   </div>
 
-                  <form onSubmit={handleSubmit} className="space-y-6">
                     {/* Tab Panels */}
                     <div className="h-[100px]">
                       {activeTab === 'url' ? (
@@ -318,7 +412,9 @@ export const AuditForm: React.FC<AuditFormProps> = ({ onSubmit, isLoading }) => 
                         </div>
                       )}
                     </div>
+                  </div>
 
+                  <form onSubmit={handleSubmit} className="space-y-6">
                     {/* Error Message */}
                     {error && (
                       <div id="error-message" role="alert" aria-live="polite" className="text-red-600 text-sm">
@@ -385,5 +481,6 @@ export const AuditForm: React.FC<AuditFormProps> = ({ onSubmit, isLoading }) => 
         </div>
       </div>
     </div>
+    </>
   );
 };
