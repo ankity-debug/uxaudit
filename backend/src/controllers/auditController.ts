@@ -271,7 +271,7 @@ export class AuditController {
           method: 'POST',
           body: formData as any,
           headers: formData.getHeaders(),
-          signal: AbortSignal.timeout(10000) // 10 second timeout
+          signal: AbortSignal.timeout(300000) // 5 minute timeout
         }).then(async (response) => {
           console.log(`📊 Database API response status: ${response.status}`);
           if (!response.ok) {

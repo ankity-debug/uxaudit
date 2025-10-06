@@ -40,7 +40,7 @@ export class BrevoEmailService {
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       },
-      timeout: 30000
+      timeout: 300000 // 5 minutes
     });
   }
 

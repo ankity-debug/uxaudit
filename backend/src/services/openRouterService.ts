@@ -11,7 +11,7 @@ export class OpenRouterService {
   }
 
   async analyzeUX(prompt: GeminiAnalysisPrompt): Promise<AuditData> {
-    const model = 'alibaba/tongyi-deepresearch-30b-a3b:free';
+    const model = 'meta-llama/llama-3.3-70b-instruct:free';
 
     try {
       const analysisPrompt = this.buildAnalysisPrompt(prompt);
@@ -39,7 +39,7 @@ export class OpenRouterService {
             'HTTP-Referer': 'https://lemonyellow.design',
             'X-Title': 'lycheeLens UX Audit Tool'
           },
-          timeout: 30000
+          timeout: 300000 // 5 minutes
         });
       };
 
@@ -114,7 +114,7 @@ export class OpenRouterService {
             'HTTP-Referer': 'https://lemonyellow.design',
             'X-Title': 'lycheeLens UX Audit Tool'
           },
-          timeout: 40000 // Reasonable timeout for quality analysis
+          timeout: 300000 // 5 minutes for quality analysis
         });
       };
 

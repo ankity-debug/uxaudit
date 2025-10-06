@@ -19,7 +19,7 @@ export class PDFService {
       // Set content and wait for images to load
       await page.setContent(htmlContent, {
         waitUntil: 'networkidle0',
-        timeout: 30000
+        timeout: 300000 // 5 minutes
       });
 
       // Generate PDF with optimized settings
