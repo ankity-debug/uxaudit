@@ -382,11 +382,11 @@ Response format: Valid JSON only, starting with { and ending with }`;
     if (!fixes || !Array.isArray(fixes)) return [];
 
     return fixes.map((fix, index) => {
-      if (!fix.impact || fix.impact.trim() === '') {
-        console.warn(`⚠️  Fix #${index + 1} "${fix.title}" missing impact field - adding default`);
+      if (!fix.businessImpact || fix.businessImpact.trim() === '') {
+        console.warn(`⚠️  Fix #${index + 1} "${fix.title || 'Unnamed fix'}" missing businessImpact field - adding default`);
         return {
           ...fix,
-          impact: `Expected to improve user experience and conversion rates by 15-25%`
+          businessImpact: `Expected to improve user experience and reduce friction, leading to better conversion rates`
         };
       }
       return fix;

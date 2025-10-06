@@ -22,8 +22,13 @@ export class ScreenshotService {
           '--disable-background-timer-throttling',
           '--disable-backgrounding-occluded-windows',
           '--disable-renderer-backgrounding',
-          '--disable-dev-tools'
-        ]
+          '--disable-dev-tools',
+          '--disable-accelerated-2d-canvas',
+          '--no-first-run',
+          '--no-zygote',
+          '--disable-features=IsolateOrigins,site-per-process'
+        ],
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath()
       });
     }
     return this.browser;
