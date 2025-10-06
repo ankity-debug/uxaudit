@@ -1,8 +1,20 @@
 import express from 'express';
+import cors from 'cors';
 import { AuditController } from './controllers/auditController';
 import { upload } from './utils/multerConfig';
 import path from 'path';
 const app = express();
+
+// CORS Configuration
+const corsOptions = {
+  origin: process.env.NODE_ENV === 'production'
+    ? ['https://auditgit.vercel.app', 'https://lemonyellow.design']
+    : 'http://localhost:3000',
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
 
 // Middleware
 app.use(express.json({ limit: '50mb' }));

@@ -34,7 +34,7 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
 
   // Get relevant case studies using smart matching - show 2 for focus
   const getRelevantCaseStudiesForAudit = () => {
-    const relevantStudies = getRelevantCaseStudies(data.url, data.summary, 2);
+    const relevantStudies = getRelevantCaseStudies(data.url, data.summary, undefined, 2);
     // If no relevant studies found, show high-priority general studies
     if (relevantStudies.length === 0) {
       return caseStudies

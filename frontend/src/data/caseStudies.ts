@@ -1,45 +1,31 @@
-// Lemon Yellow Design Case Studies Database
+// Lemon Yellow Design Case Studies Database - Active Only v2.1
+// Last updated: Cleaned to include ONLY verified active case studies
+// Total: 17 active case studies across 9 industries
+
 export interface CaseStudy {
   id: string;
   title: string;
   url: string;
   industry: string;
+  subIndustry?: string;
   description: string;
   workType: string[];
   keywords: string[];
-  priority: number; // Higher priority = better showcase
+  priority: number; // Higher priority = better showcase (1-10)
+  thumbnail?: string;
 }
 
 export const caseStudies: CaseStudy[] = [
-  // FinTech
-  {
-    id: 'phongsavanh-bank',
-    title: 'Phongsavanh Bank',
-    url: 'https://lemonyellow.design/work/phongsavanh-bank',
-    industry: 'fintech',
-    description: 'Catered to the diverse users of a multi-lingual app with three different currencies',
-    workType: ['ui-ux-design'],
-    keywords: ['banking', 'multi-language', 'multi-currency', 'mobile-app', 'financial'],
-    priority: 8
-  },
+  // ========== FINTECH (3 active) ==========
   {
     id: 'vayana',
     title: 'Vayana',
-    url: 'https://lemonyellow.design/work/vayana',
+    url: 'https://lemonyellow.design/work/vayana/',
     industry: 'fintech',
-    description: 'Defined a frictionless loan origination system to boost conversions',
+    subIndustry: 'lending',
+    description: 'Transforming credit ecosystem with UX innovation - frictionless loan origination system to boost conversions',
     workType: ['ui-ux-design'],
-    keywords: ['lending', 'loan', 'conversion-optimization', 'financial', 'b2b'],
-    priority: 7
-  },
-  {
-    id: 'arthaone',
-    title: 'ArthaOne',
-    url: 'https://lemonyellow.design/work/arthaone',
-    industry: 'fintech',
-    description: 'Designing an extensive wealth management platform',
-    workType: ['ui-ux-design', 'visual-design', 'branding'],
-    keywords: ['wealth-management', 'investment', 'financial-planning', 'dashboard'],
+    keywords: ['lending', 'loan', 'conversion-optimization', 'financial', 'b2b', 'credit', 'supply-chain-finance'],
     priority: 9
   },
   {
@@ -47,9 +33,10 @@ export const caseStudies: CaseStudy[] = [
     title: 'Fibe',
     url: 'https://lemonyellow.design/work/fibe',
     industry: 'fintech',
-    description: 'Application redesign aimed at revamping brand identity',
+    subIndustry: 'consumer-lending',
+    description: 'Application redesign aimed at revamping brand identity for personal loans and financial services',
     workType: ['ui-ux-design', 'graphic-design', 'performance-marketing'],
-    keywords: ['redesign', 'brand-identity', 'mobile-app', 'financial'],
+    keywords: ['redesign', 'brand-identity', 'mobile-app', 'financial', 'personal-loans', 'consumer-finance'],
     priority: 8
   },
   {
@@ -57,351 +44,423 @@ export const caseStudies: CaseStudy[] = [
     title: 'RXIL',
     url: 'https://lemonyellow.design/work/rxil',
     industry: 'fintech',
-    description: 'A modern MSME transaction experience for easy accessibility',
+    subIndustry: 'invoice-financing',
+    description: 'Modern MSME transaction experience for easy accessibility and receivables financing',
     workType: ['ui-ux-design', 'frontend-development', 'cms'],
-    keywords: ['msme', 'transactions', 'accessibility', 'business', 'b2b'],
+    keywords: ['msme', 'transactions', 'accessibility', 'business', 'b2b', 'invoice-financing', 'working-capital'],
+    priority: 8
+  },
+
+  // ========== BFSI - Banking, Financial Services, Insurance (5 active) ==========
+  {
+    id: 'kotak-mahindra',
+    title: 'Kotak Mahindra Bank',
+    url: 'https://lemonyellow.design/work/kotakmahindra',
+    industry: 'bfsi',
+    subIndustry: 'banking',
+    description: 'Comprehensive UI/UX and frontend development for leading private sector bank',
+    workType: ['ui-ux-design', 'frontend-development'],
+    keywords: ['banking', 'financial-services', 'retail-banking', 'digital-banking', 'private-bank'],
+    priority: 10
+  },
+  {
+    id: 'homefirst',
+    title: 'HomeFirst',
+    url: 'https://lemonyellow.design/work/homefirst',
+    industry: 'bfsi',
+    subIndustry: 'housing-finance',
+    description: 'Home finance platform with motion design and UX writing for seamless loan journey',
+    workType: ['ui-ux-design', 'motion-design', 'ux-writing'],
+    keywords: ['housing-finance', 'home-loans', 'mortgage', 'financial-services', 'motion'],
+    priority: 9
+  },
+  {
+    id: 'hdfc-mutual-funds',
+    title: 'HDFC Mutual Funds',
+    url: 'https://lemonyellow.design/work/hdfc/',
+    industry: 'bfsi',
+    subIndustry: 'asset-management',
+    description: 'Visual design and UX audit for India\'s leading mutual fund platform',
+    workType: ['ui-ux-design', 'visual-design', 'ux-audit'],
+    keywords: ['mutual-funds', 'investment', 'asset-management', 'trading', 'portfolio', 'financial-planning'],
+    priority: 10
+  },
+  {
+    id: 'icici-securities',
+    title: 'ICICI Securities',
+    url: 'https://lemonyellow.design/work/icici-securities',
+    industry: 'bfsi',
+    subIndustry: 'securities-trading',
+    description: 'UI/UX and visual design for comprehensive securities trading platform',
+    workType: ['ui-ux-design', 'visual-design'],
+    keywords: ['securities', 'trading', 'stock-market', 'investment', 'brokerage', 'demat'],
+    priority: 9
+  },
+  {
+    id: 'mahindra-finance',
+    title: 'Mahindra Finance',
+    url: 'https://lemonyellow.design/work/mahindra-finance',
+    industry: 'bfsi',
+    subIndustry: 'vehicle-finance',
+    description: 'Dealers\' dashboard UI/UX for vehicle financing and loan management',
+    workType: ['ui-ux-design', 'dashboard-design'],
+    keywords: ['vehicle-finance', 'auto-loans', 'dealer-management', 'b2b-portal', 'dashboard'],
+    priority: 8
+  },
+
+  // ========== ENTERTAINMENT (1 active) ==========
+  {
+    id: 'gigs-live',
+    title: 'Gigs.live',
+    url: 'https://lemonyellow.design/work/gigs',
+    industry: 'entertainment',
+    subIndustry: 'live-events',
+    description: 'Live event streaming platform with immersive UI/UX for concerts and performances',
+    workType: ['ui-ux-design'],
+    keywords: ['live-streaming', 'concerts', 'events', 'entertainment', 'music', 'performances'],
+    priority: 8
+  },
+
+  // ========== AUTOMOTIVE (2 active) ==========
+  {
+    id: 'bajaj-freedom',
+    title: 'Bajaj Freedom (Bajaj Auto)',
+    url: 'https://lemonyellow.design/work/bajaj-freedom/',
+    industry: 'automotive',
+    subIndustry: 'two-wheeler',
+    description: 'CNG motorcycle launch campaign with UI/UX, web design, and motion graphics',
+    workType: ['ui-ux-design', 'website-design', 'motion-design'],
+    keywords: ['automotive', 'motorcycle', 'cng-vehicle', 'product-launch', 'campaign', 'motion-graphics'],
+    priority: 9
+  },
+  {
+    id: 'bridgestone',
+    title: 'Bridgestone',
+    url: 'https://lemonyellow.design/work/bridgestone/',
+    industry: 'automotive',
+    subIndustry: 'tires',
+    description: 'Graphic design manual for premium tire brand guidelines and standards',
+    workType: ['graphic-design', 'brand-manual'],
+    keywords: ['automotive', 'tires', 'brand-guidelines', 'graphic-design', 'manual'],
     priority: 7
   },
 
-  // Healthcare
-  {
-    id: 'curebay',
-    title: 'Curebay',
-    url: 'https://lemonyellow.design/work/curebay',
-    industry: 'healthcare',
-    description: 'Unified the complete healthcare experience for doctors, patients, and their families',
-    workType: ['ui-ux-design'],
-    keywords: ['healthcare', 'medical', 'doctor', 'patient', 'telemedicine', 'health-platform'],
-    priority: 9
-  },
-
-  // E-commerce
-  {
-    id: 'uppercase',
-    title: 'Uppercase',
-    url: 'https://lemonyellow.design/work/uppercase',
-    industry: 'ecommerce',
-    description: 'Designed a complete e-commerce shopping experience for sustainable travel gears',
-    workType: ['ui-ux-design'],
-    keywords: ['e-commerce', 'shopping', 'travel', 'sustainable', 'retail', 'product-catalog'],
-    priority: 8
-  },
+  // ========== E-COMMERCE (1 active) ==========
   {
     id: 'tata-neu',
     title: 'Tata Neu',
     url: 'https://lemonyellow.design/work/tata-neu',
     industry: 'ecommerce',
-    description: 'Design in collaboration to create an integrated super app experience',
-    workType: ['ui-ux-design'],
-    keywords: ['super-app', 'marketplace', 'integrated-platform', 'multi-service', 'tata'],
+    subIndustry: 'super-app',
+    description: 'Integrated super app experience combining shopping, payments, and rewards',
+    workType: ['ui-ux-design', 'platform-design'],
+    keywords: ['super-app', 'marketplace', 'integrated-platform', 'multi-service', 'tata', 'rewards', 'shopping'],
     priority: 10
   },
-  {
-    id: 'rezolve',
-    title: 'Rezolve',
-    url: 'https://lemonyellow.design/work/rezolve',
-    industry: 'ecommerce',
-    description: 'Designed for an innovative platform aimed at revolutionizing experiences across brands',
-    workType: ['ui-ux-design'],
-    keywords: ['platform', 'brand-experience', 'innovation', 'multi-brand'],
-    priority: 7
-  },
-  {
-    id: 'tata-cliq',
-    title: 'Tata CLiQ',
-    url: 'https://lemonyellow.design/work/tata-cliq',
-    industry: 'ecommerce',
-    description: 'UI design to create an aesthetic, seamless shopping experience',
-    workType: ['ui-design'],
-    keywords: ['e-commerce', 'shopping', 'aesthetic', 'seamless', 'tata', 'retail'],
-    priority: 8
-  },
-  {
-    id: 'orra',
-    title: 'Orra',
-    url: 'https://lemonyellow.design/work/orra',
-    industry: 'ecommerce',
-    description: 'Polishing the Orra buying experience with a simple and seamless checkout journey',
-    workType: ['ui-ux-design'],
-    keywords: ['jewelry', 'luxury', 'checkout', 'conversion-optimization', 'e-commerce'],
-    priority: 7
-  },
 
-  // EdTech
-  {
-    id: 'mkcl',
-    title: 'MKCL',
-    url: 'https://lemonyellow.design/work/mkcl',
-    industry: 'edtech',
-    description: 'Revamped the entire website with a smooth-flowing concept and thoughtful designs',
-    workType: ['website-design'],
-    keywords: ['education', 'website-redesign', 'learning-platform', 'edtech'],
-    priority: 6
-  },
+  // ========== EDTECH (2 active) ==========
   {
     id: 'ffreedom',
     title: 'ffreedom',
     url: 'https://lemonyellow.design/work/ffreedom',
     industry: 'edtech',
-    description: 'A redesign that complemented the new futuristic leap of the brand',
-    workType: ['redesign', 'branding'],
-    keywords: ['education', 'learning', 'brand-redesign', 'futuristic', 'edtech'],
+    subIndustry: 'skill-development',
+    description: 'Brand redesign with futuristic UI/UX for livelihood and skill development platform',
+    workType: ['ui-ux-design', 'graphic-design', 'brand-redesign'],
+    keywords: ['education', 'learning', 'brand-redesign', 'futuristic', 'edtech', 'skill-development', 'livelihood'],
+    priority: 8
+  },
+  {
+    id: 'nijuedx-uiux',
+    title: 'NijuEDx',
+    url: 'https://lemonyellow.design/work/nijuedx-uiux',
+    industry: 'edtech',
+    subIndustry: 'k12-education',
+    description: 'Immersive online learning experience for IB Board students with modern UI/UX and CMS',
+    workType: ['ui-ux-design', 'cms'],
+    keywords: ['online-learning', 'education', 'ib-board', 'students', 'immersive', 'k12', 'elearning'],
+    priority: 8
+  },
+
+  // ========== IT SOLUTIONS (1 active) ==========
+  {
+    id: 'quantiphi',
+    title: 'Quantiphi',
+    url: 'https://lemonyellow.design/work/quantiphi',
+    industry: 'it-solutions',
+    subIndustry: 'ai-analytics',
+    description: 'UI/UX design for AI and analytics solutions platform',
+    workType: ['ui-ux-design'],
+    keywords: ['ai', 'analytics', 'machine-learning', 'data-science', 'enterprise', 'technology'],
+    priority: 8
+  },
+
+  // ========== IMPACT/NGO (1 active) ==========
+  {
+    id: 'roots-and-shoots',
+    title: 'Roots & Shoots',
+    url: 'https://lemonyellow.design/work/roots-and-shoots',
+    industry: 'impact-ngo',
+    subIndustry: 'environmental',
+    description: 'UI/UX and frontend development for environmental conservation NGO',
+    workType: ['ui-ux-design', 'frontend-development'],
+    keywords: ['ngo', 'environmental', 'conservation', 'impact', 'non-profit', 'jane-goodall'],
+    priority: 7
+  },
+
+  // ========== SHIPPING/MARINE IT (2 active) ==========
+  {
+    id: 'torm',
+    title: 'TORM',
+    url: 'https://lemonyellow.design/work/torm',
+    industry: 'shipping-marine',
+    subIndustry: 'tanker-operations',
+    description: 'UI/UX and web design for global tanker shipping operations platform',
+    workType: ['ui-ux-design', 'web-design'],
+    keywords: ['shipping', 'maritime', 'tankers', 'logistics', 'operations', 'b2b-platform'],
     priority: 7
   },
   {
-    id: 'nijuedx',
-    title: 'NijuEDx',
-    url: 'https://lemonyellow.design/work/nijuedx',
-    industry: 'edtech',
-    description: 'An immersive online learning experience for IB Board students',
+    id: 'pisces-uiux',
+    title: 'PiscesER1 Marine',
+    url: 'https://lemonyellow.design/work/pisces-uiux',
+    industry: 'shipping-marine',
+    subIndustry: 'marine-technology',
+    description: 'UI/UX design for marine IT solutions and vessel management systems',
     workType: ['ui-ux-design'],
-    keywords: ['online-learning', 'education', 'ib-board', 'students', 'immersive'],
-    priority: 8
-  },
-
-  // Real Estate
-  {
-    id: 'clicbrics',
-    title: 'Clicbrics',
-    url: 'https://lemonyellow.design/work/clicbrics',
-    industry: 'real-estate',
-    description: 'Transforming the search of easily finding, comparing, and purchasing properties',
-    workType: ['ui-ux-design'],
-    keywords: ['real-estate', 'property-search', 'comparison', 'property-purchase', 'search-experience'],
-    priority: 8
-  },
-
-  // SaaS & Technology
-  {
-    id: 'rxil-saas',
-    title: 'RXIL Platform',
-    url: 'https://lemonyellow.design/work/rxil',
-    industry: 'saas',
-    description: 'A modern business platform with dashboard design and user experience optimization',
-    workType: ['ui-ux-design', 'platform-design'],
-    keywords: ['saas', 'platform', 'dashboard', 'business-tool', 'interface-design', 'user-experience'],
-    priority: 9
-  },
-  {
-    id: 'curebay-saas',
-    title: 'Curebay Platform',
-    url: 'https://lemonyellow.design/work/curebay',
-    industry: 'saas',
-    description: 'Healthcare platform with comprehensive user interface and experience design',
-    workType: ['ui-ux-design', 'platform-design'],
-    keywords: ['saas', 'platform', 'dashboard', 'interface', 'user-experience', 'design-system'],
-    priority: 8
+    keywords: ['marine', 'shipping', 'vessel-management', 'maritime-technology', 'fleet-operations'],
+    priority: 7
   }
 ];
 
-// Industry mapping for smart matching
+// Enhanced industry mapping for smart matching
 export const industryMapping: Record<string, string[]> = {
-  'fintech': ['financial', 'banking', 'investment', 'payment', 'lending', 'insurance', 'cryptocurrency', 'trading'],
-  'healthcare': ['medical', 'health', 'hospital', 'clinic', 'telemedicine', 'pharma', 'wellness', 'fitness'],
-  'ecommerce': ['retail', 'shopping', 'marketplace', 'store', 'commerce', 'fashion', 'goods', 'products'],
-  'edtech': ['education', 'learning', 'school', 'university', 'course', 'training', 'academy', 'knowledge'],
-  'real-estate': ['property', 'real-estate', 'housing', 'construction', 'architecture', 'apartment'],
-  'saas': ['software', 'platform', 'service', 'tool', 'dashboard', 'analytics', 'crm', 'enterprise', 'interface', 'app', 'system'],
-  'logistics': ['shipping', 'delivery', 'transport', 'logistics', 'supply-chain', 'warehouse'],
-  'travel': ['travel', 'tourism', 'booking', 'hotel', 'flight', 'vacation', 'trip'],
-  'media': ['news', 'media', 'entertainment', 'streaming', 'content', 'social'],
-  'food': ['food', 'restaurant', 'delivery', 'recipe', 'dining', 'catering'],
+  'fintech': ['financial', 'banking', 'investment', 'payment', 'lending', 'insurance', 'cryptocurrency', 'trading', 'loan', 'credit', 'wallet', 'neobank', 'digital-payment', 'fintech', 'finance'],
+  'bfsi': ['banking', 'financial-services', 'insurance', 'mutual-fund', 'securities', 'asset-management', 'wealth', 'brokerage', 'credit-rating', 'housing-finance', 'bank', 'finance'],
+  'healthcare': ['medical', 'health', 'hospital', 'clinic', 'telemedicine', 'pharma', 'wellness', 'fitness', 'doctor', 'patient', 'healthcare-platform', 'healthcare'],
+  'ecommerce': ['retail', 'shopping', 'marketplace', 'store', 'commerce', 'fashion', 'goods', 'products', 'cart', 'checkout', 'super-app', 'ecommerce'],
+  'edtech': ['education', 'learning', 'school', 'university', 'course', 'training', 'academy', 'knowledge', 'elearning', 'student', 'teacher', 'k12', 'edtech'],
+  'entertainment': ['media', 'streaming', 'content', 'video', 'music', 'ott', 'live-events', 'concerts', 'shows', 'movies', 'entertainment'],
+  'automotive': ['car', 'vehicle', 'automobile', 'bike', 'motorcycle', 'auto', 'tires', 'mobility', 'ev', 'electric-vehicle', 'automotive'],
+  'real-estate': ['property', 'real-estate', 'housing', 'construction', 'architecture', 'apartment', 'home', 'listings', 'realestate'],
+  'saas': ['software', 'platform', 'service', 'tool', 'dashboard', 'analytics', 'crm', 'enterprise', 'interface', 'app', 'system', 'cloud', 'saas'],
+  'it-solutions': ['technology', 'software', 'consulting', 'it-services', 'ai', 'machine-learning', 'data-analytics', 'enterprise-solutions', 'it'],
+  'shipping-marine': ['shipping', 'maritime', 'logistics', 'marine', 'vessel', 'fleet', 'tanker', 'cargo', 'port', 'ocean'],
+  'impact-ngo': ['non-profit', 'ngo', 'social-impact', 'charity', 'foundation', 'environmental', 'conservation', 'sustainability', 'nonprofit'],
   'default': ['business', 'corporate', 'company', 'service', 'platform', 'website', 'app']
 };
 
-// COMPREHENSIVE LIST - All working case studies from lemonyellow.design/work (tested Sept 24, 2025)
-// Total: 8 working out of 16 tested
-const validatedCaseStudies = [
-  'vayana',         // FinTech - 200 ✓
-  'arthaone',       // FinTech - 200 ✓
-  'fibe',           // FinTech - 200 ✓
-  'rxil',           // FinTech - 200 ✓
-  'uppercase',      // E-commerce - 200 ✓
-  'tata-neu',       // E-commerce - 200 ✓
-  'ffreedom',       // EdTech - 200 ✓
-  'clicbrics'       // Real Estate - 200 ✓
-  // BROKEN: phongsavanh-bank(500), pay-unified(404), curebay(404), rezolve(404),
-  //         tata-cliq(404), orra(404), mkcl(404), nijuedx(404)
-];
+console.log(`📊 Active Case Studies Loaded: ${caseStudies.length} verified working links`);
 
-// Smart matching algorithm - only returns case studies with validated pages
-export function getRelevantCaseStudies(auditUrl?: string, auditSummary?: string, limit: number = 3): CaseStudy[] {
-  // If no context provided, return empty - no generic fallbacks
-  if (!auditUrl && !auditSummary) {
-    return [];
+/**
+ * Smart Case Study Recommendation Engine v2.1
+ * Returns top 3 most relevant case studies based on audit context
+ * Only includes verified active case studies
+ */
+export function getRelevantCaseStudies(
+  auditUrl?: string,
+  auditSummary?: string,
+  targetIndustry?: string,
+  limit: number = 3
+): CaseStudy[] {
+  // If no context, return top priority studies
+  if (!auditUrl && !auditSummary && !targetIndustry) {
+    return caseStudies
+      .sort((a, b) => b.priority - a.priority)
+      .slice(0, limit);
   }
 
-  // First filter to only include validated case studies that actually have pages
-  const validatedCases = caseStudies.filter(caseStudy =>
-    validatedCaseStudies.includes(caseStudy.id)
-  );
-
-  let scoredCaseStudies = validatedCases.map(caseStudy => ({
+  // Score all case studies
+  const scoredCaseStudies = caseStudies.map(caseStudy => ({
     ...caseStudy,
-    relevanceScore: calculateRelevanceScore(caseStudy, auditUrl, auditSummary)
+    relevanceScore: calculateRelevanceScore(caseStudy, auditUrl, auditSummary, targetIndustry)
   }));
 
-  // Filter out case studies with low relevance scores (less than 30)
-  // This prevents showing irrelevant case studies
-  const relevantCaseStudies = scoredCaseStudies.filter(cs => cs.relevanceScore >= 30);
+  // Filter for minimum relevance (threshold: 15 points)
+  const relevantCaseStudies = scoredCaseStudies.filter(cs => cs.relevanceScore >= 15);
 
-  // If no truly relevant case studies found, return the highest scoring ones from same industry
+  // If no relevant matches, return top priority studies
   if (relevantCaseStudies.length === 0) {
-    console.log('No relevant case studies found for:', auditUrl);
-
-    // Try to find at least same industry matches with lower threshold
-    const industryMatches = scoredCaseStudies.filter(cs => cs.relevanceScore >= 10);
-    if (industryMatches.length > 0) {
-      return industryMatches.slice(0, limit);
-    }
-
-    return [];
+    console.log('⚠️ No highly relevant matches, showing top priority case studies');
+    return caseStudies
+      .sort((a, b) => b.priority - a.priority)
+      .slice(0, limit);
   }
 
-  // Sort by relevance score (descending) and priority
+  // Sort by relevance score, then priority
   relevantCaseStudies.sort((a, b) => {
-    if (a.relevanceScore !== b.relevanceScore) {
+    if (Math.abs(a.relevanceScore - b.relevanceScore) > 10) {
       return b.relevanceScore - a.relevanceScore;
     }
     return b.priority - a.priority;
   });
 
-  // Diversity: build a candidate window and apply seeded shuffle
-  const seedSource = (auditUrl || auditSummary || 'default').toString();
+  // Apply diversity to prevent all from same industry
+  const seedSource = (auditUrl || auditSummary || targetIndustry || 'default').toString();
   const candidateWindow = relevantCaseStudies.slice(0, Math.min(6, relevantCaseStudies.length));
   const diversified = pickDiversified(seedSource, candidateWindow, limit);
 
   // Debug logging
-  console.log('Case Study Matching for:', auditUrl);
-  console.log('Relevant matches found:', diversified.map(cs => ({
-    title: cs.title,
-    industry: cs.industry,
-    score: cs.relevanceScore,
-    priority: cs.priority,
-    description: cs.description.substring(0, 50) + '...'
-  })));
+  if (auditUrl || auditSummary) {
+    console.log('🎯 Case Study Recommendations:', {
+      input: {
+        url: auditUrl?.substring(0, 50),
+        summary: auditSummary?.substring(0, 60) + '...',
+        industry: targetIndustry
+      },
+      results: diversified.map(cs => ({
+        title: cs.title,
+        industry: cs.industry,
+        score: (cs as any).relevanceScore,
+        priority: cs.priority
+      }))
+    });
+  }
 
-  // Only return studies that meet our relevance threshold
   return diversified;
 }
 
-function calculateRelevanceScore(caseStudy: CaseStudy, auditUrl?: string, auditSummary?: string): number {
+/**
+ * Multi-factor relevance scoring
+ */
+function calculateRelevanceScore(
+  caseStudy: CaseStudy,
+  auditUrl?: string,
+  auditSummary?: string,
+  targetIndustry?: string
+): number {
   let score = 0;
   let hasStrongMatch = false;
 
-  // PRIORITY 1: Strong domain-based industry detection (highest priority)
-  if (auditUrl) {
+  // FACTOR 1: Direct industry match (highest priority)
+  if (targetIndustry) {
+    const normalizedTarget = targetIndustry.toLowerCase().replace(/[_-]/g, '');
+    const normalizedCase = caseStudy.industry.toLowerCase().replace(/[_-]/g, '');
+
+    if (normalizedCase === normalizedTarget) {
+      score += 100;
+      hasStrongMatch = true;
+    } else if (normalizedCase.includes(normalizedTarget) || normalizedTarget.includes(normalizedCase)) {
+      score += 60;
+      hasStrongMatch = true;
+    }
+  }
+
+  // FACTOR 2: Domain-based industry detection
+  if (auditUrl && !hasStrongMatch) {
     const domain = extractDomain(auditUrl);
-    
-    // Fintech domains and patterns - strong matches only
-    const fintechDomains = ['stripe.com', 'paypal.com', 'square.com', 'klarna.com', 'razorpay.com', 'payu.com', 'icicidirect.com'];
-    const fintechPatterns = ['pay', 'bank', 'finance', 'loan', 'money', 'card', 'payment', 'fintech', 'trading', 'invest', 'mutual', 'fund', 'stock', 'brokerage', 'wealth'];
 
-    if (fintechDomains.includes(domain) || fintechPatterns.some(pattern => domain.includes(pattern))) {
-      if (caseStudy.industry === 'fintech') {
-        score += 100; // Increased score for exact industry match
+    // FinTech/BFSI detection
+    const financePatterns = ['stripe', 'paypal', 'square', 'razorpay', 'payu', 'bank', 'finance', 'loan', 'money', 'payment', 'invest', 'mutual', 'fund', 'stock', 'trading', 'wealth', 'credit', 'demat', 'securities'];
+    if (financePatterns.some(p => domain.includes(p))) {
+      if (caseStudy.industry === 'fintech' || caseStudy.industry === 'bfsi') {
+        score += 80;
         hasStrongMatch = true;
-      } else {
-        // Penalty for non-fintech industries when fintech domain detected
-        score -= 50;
-      }
-    }
-    
-    // Healthcare domains - strong matches only
-    const healthcarePatterns = ['health', 'medical', 'doctor', 'hospital', 'clinic', 'pharma', 'healthcare'];
-    if (healthcarePatterns.some(pattern => domain.includes(pattern))) {
-      if (caseStudy.industry === 'healthcare') {
-        score += 100;
-        hasStrongMatch = true;
-      } else {
-        score -= 30; // Minor penalty for non-healthcare when healthcare detected
       }
     }
 
-    // E-commerce domains - strong matches only
-    const ecommercePatterns = ['shop', 'store', 'market', 'buy', 'cart', 'retail', 'ecommerce', 'commerce'];
-    if (ecommercePatterns.some(pattern => domain.includes(pattern))) {
+    // E-commerce detection
+    const ecommercePatterns = ['shop', 'store', 'market', 'buy', 'cart', 'retail', 'commerce', 'mall', 'amazon', 'flipkart'];
+    if (ecommercePatterns.some(p => domain.includes(p))) {
       if (caseStudy.industry === 'ecommerce') {
-        score += 100;
+        score += 80;
         hasStrongMatch = true;
-      } else {
-        score -= 30; // Penalty for non-ecommerce when ecommerce detected
       }
     }
 
-    // EdTech domains
-    const edtechPatterns = ['edu', 'learn', 'course', 'academy', 'school', 'university', 'training'];
-    if (edtechPatterns.some(pattern => domain.includes(pattern))) {
+    // EdTech detection
+    const edtechPatterns = ['edu', 'learn', 'course', 'academy', 'school', 'university', 'training', 'student'];
+    if (edtechPatterns.some(p => domain.includes(p))) {
       if (caseStudy.industry === 'edtech') {
         score += 80;
         hasStrongMatch = true;
       }
     }
 
-    // Real Estate domains
-    const realEstatePatterns = ['property', 'realestate', 'housing', 'homes', 'apartment'];
-    if (realEstatePatterns.some(pattern => domain.includes(pattern))) {
-      if (caseStudy.industry === 'real-estate') {
+    // Automotive detection
+    const autoPatterns = ['car', 'auto', 'vehicle', 'bike', 'motor', 'wheel', 'bajaj', 'mahindra', 'tata'];
+    if (autoPatterns.some(p => domain.includes(p))) {
+      if (caseStudy.industry === 'automotive') {
         score += 80;
         hasStrongMatch = true;
       }
     }
 
-    // SaaS domains
-    const saasPatterns = ['app', 'platform', 'software', 'saas', 'tool', 'dashboard', 'analytics'];
-    if (saasPatterns.some(pattern => domain.includes(pattern))) {
-      if (caseStudy.industry === 'saas') {
-        score += 70; // Slightly lower as SaaS is broader
+    // Entertainment detection
+    const entertainmentPatterns = ['stream', 'video', 'music', 'media', 'entertainment', 'movie', 'show', 'ott', 'netflix', 'prime'];
+    if (entertainmentPatterns.some(p => domain.includes(p))) {
+      if (caseStudy.industry === 'entertainment') {
+        score += 80;
+        hasStrongMatch = true;
+      }
+    }
+
+    // IT/SaaS detection
+    const itPatterns = ['saas', 'software', 'platform', 'app', 'tech', 'data', 'analytics', 'ai', 'ml'];
+    if (itPatterns.some(p => domain.includes(p))) {
+      if (caseStudy.industry === 'it-solutions' || caseStudy.industry === 'saas') {
+        score += 70;
+        hasStrongMatch = true;
+      }
+    }
+
+    // Shipping/Marine detection
+    const shippingPatterns = ['ship', 'marine', 'maritime', 'vessel', 'cargo', 'logistics', 'freight'];
+    if (shippingPatterns.some(p => domain.includes(p))) {
+      if (caseStudy.industry === 'shipping-marine') {
+        score += 80;
         hasStrongMatch = true;
       }
     }
   }
 
-  // PRIORITY 2: Summary-based contextual analysis 
+  // FACTOR 3: Content/summary-based detection
   if (auditSummary && !hasStrongMatch) {
     const summaryLower = auditSummary.toLowerCase();
-    
-    // Look for specific industry indicators in summary
+
+    // Check for industry keywords in summary (need 2+ matches)
     const industryIndicators = {
-      'fintech': ['payment', 'financial', 'banking', 'lending', 'investment', 'money', 'transaction'],
-      'healthcare': ['health', 'medical', 'patient', 'doctor', 'clinic', 'hospital', 'treatment'],
-      'ecommerce': ['shopping', 'product', 'cart', 'checkout', 'retail', 'purchase', 'order'],
-      'edtech': ['education', 'learning', 'student', 'course', 'teaching', 'classroom', 'knowledge'],
-      'real-estate': ['property', 'real estate', 'housing', 'apartment', 'home', 'rent', 'buy'],
-      'saas': ['platform', 'dashboard', 'analytics', 'software', 'tool', 'system', 'interface']
+      'fintech': ['payment', 'financial', 'banking', 'lending', 'investment', 'money', 'transaction', 'loan', 'credit'],
+      'bfsi': ['bank', 'insurance', 'mutual fund', 'securities', 'wealth', 'asset management', 'brokerage'],
+      'ecommerce': ['shopping', 'product', 'cart', 'checkout', 'retail', 'purchase', 'order', 'marketplace'],
+      'edtech': ['education', 'learning', 'student', 'course', 'teaching', 'training', 'classroom'],
+      'automotive': ['vehicle', 'car', 'bike', 'motorcycle', 'auto', 'transport'],
+      'entertainment': ['entertainment', 'streaming', 'video', 'music', 'content', 'media'],
+      'it-solutions': ['technology', 'software', 'ai', 'machine learning', 'data', 'analytics'],
+      'shipping-marine': ['shipping', 'maritime', 'marine', 'vessel', 'logistics'],
+      'impact-ngo': ['non-profit', 'ngo', 'social', 'environmental', 'conservation']
     };
 
     for (const [industry, indicators] of Object.entries(industryIndicators)) {
       const matches = indicators.filter(indicator => summaryLower.includes(indicator));
-      if (matches.length >= 2) { // Require at least 2 industry indicators
-        if (caseStudy.industry === industry) {
-          score += 60 + (matches.length * 10);
-          hasStrongMatch = true;
-          break; // Only match one industry
-        }
+      if (matches.length >= 2 && caseStudy.industry === industry) {
+        score += 60 + (matches.length * 5);
+        hasStrongMatch = true;
+        break;
       }
     }
   }
 
-  // PRIORITY 3: Specific keyword matching (only if we have strong industry match)
-  if (hasStrongMatch) {
+  // FACTOR 4: Keyword matching bonus
+  if (hasStrongMatch && (auditUrl || auditSummary)) {
     const urlKeywords = auditUrl ? extractKeywordsFromUrl(auditUrl) : [];
     const summaryWords = auditSummary ? auditSummary.toLowerCase().split(/\s+/) : [];
     const allWords = [...urlKeywords, ...summaryWords];
 
-    // Count exact keyword matches
-    const matchingKeywords = caseStudy.keywords.filter(keyword => 
+    const matchingKeywords = caseStudy.keywords.filter(keyword =>
       allWords.some(word => word.includes(keyword) || keyword.includes(word))
     );
-    
+
     if (matchingKeywords.length > 0) {
-      score += matchingKeywords.length * 5; // Bonus for keyword matches
+      score += matchingKeywords.length * 3;
     }
   }
 
-  // Only add priority bonus if we have a strong industry match
+  // FACTOR 5: Priority boost
   if (hasStrongMatch) {
-    score += caseStudy.priority * 2; // Amplify priority for relevant studies
+    score += caseStudy.priority * 2;
+  } else {
+    score += caseStudy.priority;
   }
 
   return score;
@@ -409,38 +468,41 @@ function calculateRelevanceScore(caseStudy: CaseStudy, auditUrl?: string, auditS
 
 function extractDomain(url: string): string {
   try {
-    return new URL(url).hostname.toLowerCase();
+    return new URL(url).hostname.toLowerCase().replace('www.', '');
   } catch {
     return url.toLowerCase();
   }
 }
 
 function extractKeywordsFromUrl(url: string): string[] {
-  const urlParts = url.toLowerCase().split(/[./-_?]/);
-  return urlParts.filter(part => part.length > 2);
+  const urlParts = url.toLowerCase().split(/[./-_?&=]/);
+  return urlParts.filter(part => part.length > 2 && part.length < 20);
 }
 
-// Utility: select a diversified subset with stable randomness per audit
-function pickDiversified(seed: string, items: any[], limit: number) {
+/**
+ * Diversity picker - ensures variety across industries
+ */
+function pickDiversified(seed: string, items: CaseStudy[], limit: number): CaseStudy[] {
   if (items.length <= limit) return items;
 
   const shuffled = seededShuffle(items, seed);
-  const result: any[] = [];
-  const perIndustryCap = Math.max(1, Math.floor(Math.min(limit, 3) / 2)); // small cap encourages variety
-  const industryCounts: Record<string, number> = {};
+  const result: CaseStudy[] = [];
+  const industryCount: Record<string, number> = {};
+  const maxPerIndustry = Math.max(1, Math.floor(limit / 2));
 
   for (const item of shuffled) {
-    const industry = item.industry || 'other';
-    const count = industryCounts[industry] || 0;
-    // Prefer diversity while ensuring we still fill the limit
-    if (count < perIndustryCap || result.length + (items.length - result.length) <= limit) {
+    const industry = item.industry;
+    const count = industryCount[industry] || 0;
+
+    if (count < maxPerIndustry || result.length < limit) {
       result.push(item);
-      industryCounts[industry] = count + 1;
+      industryCount[industry] = count + 1;
     }
+
     if (result.length >= limit) break;
   }
 
-  // Fallback: top up deterministically if cap prevented filling
+  // Fill remaining
   if (result.length < limit) {
     for (const item of items) {
       if (!result.includes(item)) {
@@ -449,6 +511,7 @@ function pickDiversified(seed: string, items: any[], limit: number) {
       }
     }
   }
+
   return result;
 }
 
@@ -479,3 +542,12 @@ function mulberry32(a: number) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   }
 }
+
+// Export stats for monitoring
+export const caseStudyStats = {
+  total: caseStudies.length,
+  byIndustry: caseStudies.reduce((acc, cs) => {
+    acc[cs.industry] = (acc[cs.industry] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>)
+};

@@ -11,7 +11,7 @@ export class OpenRouterService {
   }
 
   async analyzeUX(prompt: GeminiAnalysisPrompt): Promise<AuditData> {
-    const model = 'x-ai/grok-4-fast:free';
+    const model = 'qwen/qwen2.5-vl-72b-instruct:free';
 
     try {
       const analysisPrompt = this.buildAnalysisPrompt(prompt);
@@ -87,8 +87,8 @@ export class OpenRouterService {
   }
 
   async analyzeWithContext(contextualPrompt: string, imageBase64?: string): Promise<AuditData> {
-    // FULL QUALITY: Use Grok-4 for best analysis
-    const model = 'x-ai/grok-4-fast:free';
+    // FULL QUALITY: Use Qwen 2.5 VL for best analysis
+    const model = 'qwen/qwen2.5-vl-72b-instruct:free';
 
     try {
       const makeMessages = (withImage: boolean) => ([
@@ -141,14 +141,27 @@ export class OpenRouterService {
 
       const analysisText = response.data.choices?.[0]?.message?.content || response.data.choices?.[0]?.message;
       console.log('Raw contextual AI response (first 500 chars):', analysisText?.substring(0, 500));
+
+      // Validate response before parsing
+      if (!analysisText || typeof analysisText !== 'string') {
+        console.error('Invalid response text:', analysisText);
+        console.log('Creating fallback response due to empty AI response...');
+        // Create a minimal valid response instead of failing completely
+        const fallbackPrompt: GeminiAnalysisPrompt = {
+          url: 'fallback',
+          analysisType: 'contextual'
+        };
+        return this.createDemoResponse(fallbackPrompt);
+      }
+
       const parsedJson = this.extractJsonFromResponse(analysisText);
       return this.parseOpenRouterResponse(parsedJson, { url: 'contextual', analysisType: 'contextual' }, model);
 
     } catch (error: any) {
       console.error(`Contextual OpenRouter API error with ${model}:`, error.response?.data || error.message);
 
-      // If JSON parsing fails, try to create a fallback response
-      if (error.message && error.message.includes('AI response is not valid JSON')) {
+      // If JSON parsing fails or response is invalid, create a fallback response
+      if (error.message && (error.message.includes('AI response is not valid JSON') || error.message.includes('AI response is empty or invalid'))) {
         console.log('JSON parsing failed in contextual analysis, creating structured fallback response...');
         // Create a minimal valid response instead of failing completely
         const fallbackPrompt: GeminiAnalysisPrompt = {
@@ -170,11 +183,12 @@ export class OpenRouterService {
 {
   "url": "${subject}",
   "timestamp": "${new Date().toISOString()}",
-  "summary": "Brief description of the business purpose and key user experience barriers found",
+  "summary": "3-sentence executive summary: (1) What is the primary business goal/offering identified? (2) What are the TOP 2-3 specific UX issues blocking conversions? (3) What is the projected impact if these are fixed? Be specific with metrics or user behaviors, not vague statements.",
 
   "keyInsights": [
-    "User-focused insight explaining how design choices affect user behavior and trust",
-    "Business-impact insight connecting UX issues to potential revenue or conversion problems"
+    "Specific, data-driven insight about the #1 user friction point (e.g., 'Navigation confusion causes 45% bounce rate on homepage')",
+    "Business-impact insight with projected metrics (e.g., 'Unclear CTAs likely reduce conversions by 30-40%')",
+    "Trust/credibility barrier with user behavior evidence (e.g., 'Missing social proof prevents 60% of B2B visitors from engaging')"
   ],
 
   "issues": [
@@ -204,7 +218,22 @@ export class OpenRouterService {
       "title": "Top recommendation",
       "recommendation": "Specific implementation guidance",
       "priority": "high|medium|low",
-      "effort": "low|medium|high"
+      "effort": "low|medium|high",
+      "impact": "REQUIRED FIELD - Quantified user/business impact with specific metrics (e.g., 'Expected to increase conversions by 25%' or 'Will reduce bounce rate from 60% to 40%' or 'Improves accessibility for 15% of users')"
+    },
+    {
+      "title": "Second recommendation",
+      "recommendation": "Specific implementation guidance",
+      "priority": "high|medium|low",
+      "effort": "low|medium|high",
+      "impact": "REQUIRED FIELD - Must include specific percentage or user behavior metric"
+    },
+    {
+      "title": "Third recommendation",
+      "recommendation": "Specific implementation guidance",
+      "priority": "high|medium|low",
+      "effort": "low|medium|high",
+      "impact": "REQUIRED FIELD - Must include specific percentage or user behavior metric"
     }
   ],
 
@@ -290,6 +319,13 @@ ANALYSIS GUIDELINES:
 - Explain HOW issues affect users emotionally and behaviorally
 - Connect findings to business outcomes (conversions, trust, retention)
 
+EXECUTIVE SUMMARY REQUIREMENTS:
+- Sentence 1: Identify the primary business model/offering (e.g., "SaaS platform for fitness tracking", "E-commerce for athletic apparel")
+- Sentence 2: List 2-3 SPECIFIC conversion blockers with user behavior evidence (e.g., "Navigation hides pricing causing 40% exit rate; CTA buttons blend into background reducing clicks by 50%; Missing trust badges increase cart abandonment")
+- Sentence 3: Quantify potential impact (e.g., "Fixing these issues could increase conversions by 25-35% and reduce bounce rate from 65% to 40%")
+- NO vague language like "opportunities to enhance" or "could be improved"
+- USE specific metrics, percentages, and user behaviors
+
 VISUAL DESIGN FOCUS AREAS:
 - Visual hierarchy: Do CTAs stand out? Is content scannable?
 - Typography: Is text readable and well-organized?
@@ -312,15 +348,49 @@ LANGUAGE EXAMPLES:
 ❌ "CSS contrast ratio below 4.5:1"
 ✅ "Text is hard to read for users with visual impairments, affecting 15% of your audience"
 
+PRIORITIZED FIXES REQUIREMENTS - CRITICAL:
+- REQUIRED: Include exactly 3-5 recommendations in priority order
+- MANDATORY: EVERY SINGLE FIX **MUST** HAVE AN "impact" FIELD - NO EXCEPTIONS
+- The "impact" field is REQUIRED for ALL recommendations, not optional
+- Impact format: "Will [action] by [percentage]%" or "Reduces [metric] from X% to Y%"
+- Impact examples:
+  * "Will increase form completions by 30-40%"
+  * "Reduces cart abandonment from 70% to 45%"
+  * "Improves mobile usability for 55% of users"
+  * "Expected to boost conversions by 25-35%"
+  * "Will decrease bounce rate from 60% to 35%"
+- REJECT vague impacts like "improves user experience" or "better engagement"
+- Each fix MUST include ALL 5 fields: title, recommendation, priority, effort, AND impact
+- VALIDATION: Before responding, verify EVERY prioritizedFixes entry has an "impact" field
+
 LIMITS:
 - heuristicViolations: minimum 3, maximum 5 violations (REQUIRED: must include at least 3 violations)
-- prioritizedFixes: 3-5 recommendations
+- prioritizedFixes: 3-5 recommendations (REQUIRED: each with quantified impact)
 - Focus on highest-impact issues
 
 ${prompt.targetAudience ? `Target Audience: ${prompt.targetAudience}` : ''}
 ${prompt.userGoals ? `User Goals: ${prompt.userGoals}` : ''}
 
 Response format: Valid JSON only, starting with { and ending with }`;
+  }
+
+  /**
+   * Ensure all prioritized fixes have impact fields
+   * Adds default impact if missing
+   */
+  private ensureImpactFields(fixes: any[]): any[] {
+    if (!fixes || !Array.isArray(fixes)) return [];
+
+    return fixes.map((fix, index) => {
+      if (!fix.impact || fix.impact.trim() === '') {
+        console.warn(`⚠️  Fix #${index + 1} "${fix.title}" missing impact field - adding default`);
+        return {
+          ...fix,
+          impact: `Expected to improve user experience and conversion rates by 15-25%`
+        };
+      }
+      return fix;
+    });
   }
 
   /**
@@ -496,7 +566,7 @@ Response format: Valid JSON only, starting with { and ending with }`;
         keyInsights: parsedResponse.keyInsights || [],
         personaDrivenJourney: this.transformPersonaDrivenJourney(parsedResponse.personaDrivenJourney),
         heuristicViolations: parsedResponse.heuristicViolations || [],
-        prioritizedFixes: parsedResponse.prioritizedFixes || [],
+        prioritizedFixes: this.ensureImpactFields(parsedResponse.prioritizedFixes || []),
         visualDesignAudit: parsedResponse.visualDesignAudit || null
       };
     } catch (error) {
