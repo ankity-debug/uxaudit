@@ -276,12 +276,12 @@ export function getRelevantCaseStudies(
     relevanceScore: calculateRelevanceScore(caseStudy, auditUrl, auditSummary, targetIndustry)
   }));
 
-  // Filter for minimum relevance (threshold: 15 points)
-  const relevantCaseStudies = scoredCaseStudies.filter(cs => cs.relevanceScore >= 15);
+  // Filter for minimum relevance (threshold: 10 points - lowered for better matches)
+  const relevantCaseStudies = scoredCaseStudies.filter(cs => cs.relevanceScore >= 10);
 
   // If no relevant matches, return top priority studies
   if (relevantCaseStudies.length === 0) {
-    console.log('⚠️ No highly relevant matches, showing top priority case studies');
+    console.log('⚠️ No relevant matches found, showing top priority case studies');
     return caseStudies
       .sort((a, b) => b.priority - a.priority)
       .slice(0, limit);

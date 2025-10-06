@@ -587,66 +587,51 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
     setDownloadStatus('sending');
 
     try {
-      // Generate PDF as Blob
-      const pdfBlob = generatePDFBlob();
-
-      // Create FormData for external endpoint
-      const formData = new FormData();
-      formData.append('name', userInfo.name);
-      formData.append('email', userInfo.email);
-      formData.append('file', pdfBlob, `ux-audit-${getPlatformName().toLowerCase().replace(/[^a-z0-9]/g, '-')}-${Date.now()}.pdf`);
-
-      // Send POST request to the external endpoint (parallel)
-      const externalPromise = fetch('https://qa-lywebsite.ly.design/uxaudit/pdf', {
-        method: 'POST',
-        body: formData,
-      }).then(response => {
-        if (!response.ok) {
-          return response.json().catch(() => ({})).then(errorData => {
-            throw new Error(`External endpoint failed: ${response.status}`);
-          });
-        }
-        return response.json();
-      }).catch(err => {
-        alert("ly site: " + err);
-      });
-
-      // Send email via Brevo (parallel)
+      // Send audit data to backend - backend will generate PDF and send to both database and email
       const shareUrl = process.env.NODE_ENV === 'production'
         ? '/api/share-report'
         : 'http://localhost:3001/api/share-report';
 
-      const brevoPromise = fetch(shareUrl, {
+      const requestPayload = {
+        auditData: data,
+        recipientEmail: userInfo.email,
+        recipientName: userInfo.name,
+        platformName: getPlatformName()
+      };
+
+      console.log('📤 Sending report generation request to backend...');
+      console.log('User info:', { name: userInfo.name, email: userInfo.email });
+      console.log('Platform name:', getPlatformName());
+      console.log('Audit data present:', !!data);
+      console.log('Request payload keys:', Object.keys(requestPayload));
+
+      const response = await fetch(shareUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          auditData: data,
-          recipientEmail: userInfo.email,
-          recipientName: userInfo.name,
-          platformName: getPlatformName()
-        })
-      }).then(response => {
-        if (!response.ok) {
-          return response.json().catch(() => ({})).then(errorData => {
-            throw new Error(errorData.message || `Brevo email failed: ${response.status}`);
-          });
-        }
-        return response.json();
-      })
+        body: JSON.stringify(requestPayload)
+      });
 
-      // Wait for both to complete
-      const [externalResult, brevoResult] = await Promise.all([externalPromise, brevoPromise]);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('❌ Backend error response:', errorData);
+        const errorMsg = errorData.error || errorData.message || `Failed to generate report: ${response.status}`;
+        const details = errorData.missing ? ` (Missing: ${errorData.missing.join(', ')})` : '';
+        throw new Error(errorMsg + details);
+      }
 
-      console.log('Report shared to external endpoint:', externalResult);
-      console.log('Report emailed via Brevo:', brevoResult);
+      const result = await response.json();
+
+      console.log('✅ Report generated and shared successfully');
+      console.log('📊 Database status:', result.dbStatus);
+      console.log('📧 Email status:', result.success ? 'sent' : 'failed');
 
       // Set to sent state
       setDownloadStatus('sent');
 
     } catch (error) {
-      console.error('Error sharing PDF report:', error);
+      console.error('❌ Error sharing PDF report:', error);
       alert(`Failed to share report: ${error instanceof Error ? error.message : 'Unknown error occurred'}`);
       // Reset to idle on error so user can retry
       setDownloadStatus('idle');

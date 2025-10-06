@@ -11,7 +11,7 @@ export class OpenRouterService {
   }
 
   async analyzeUX(prompt: GeminiAnalysisPrompt): Promise<AuditData> {
-    const model = 'deepseek/deepseek-chat-v3.1:free';
+    const model = 'alibaba/tongyi-deepresearch-30b-a3b:free';
 
     try {
       const analysisPrompt = this.buildAnalysisPrompt(prompt);

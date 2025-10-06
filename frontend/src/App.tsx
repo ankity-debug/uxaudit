@@ -26,24 +26,43 @@ function AppContent() {
     toast.dismiss();
     setIsLoading(true);
     try {
-      const formData = new FormData();
-      formData.append('type', input.type);
-      formData.append('name', input.name);
-      formData.append('email', input.email);
-      
+      // Step 1: Send user data to database (non-blocking, parallel with audit)
+      const userDataFormData = new FormData();
+      userDataFormData.append('name', input.name);
+      userDataFormData.append('email', input.email);
+
+      const sendUserDataPromise = fetch('https://qa-lywebsite.ly.design/uxaudit/', {
+        method: 'POST',
+        body: userDataFormData,
+      }).then(response => {
+        if (response.ok) {
+          console.log('✅ User data sent to database');
+        } else {
+          console.warn('⚠️ Failed to send user data to database');
+        }
+      }).catch(err => {
+        console.warn('⚠️ Database unreachable:', err.message);
+      });
+
+      // Step 2: Run audit (parallel with user data submission)
+      const auditFormData = new FormData();
+      auditFormData.append('type', input.type);
+      auditFormData.append('name', input.name);
+      auditFormData.append('email', input.email);
+
       if (input.type === 'url') {
-        formData.append('url', input.value as string);
+        auditFormData.append('url', input.value as string);
       } else {
-        formData.append('image', input.value as File);
+        auditFormData.append('image', input.value as File);
       }
 
-      const apiUrl = process.env.NODE_ENV === 'production' 
-        ? '/api/audit' 
+      const apiUrl = process.env.NODE_ENV === 'production'
+        ? '/api/audit'
         : 'http://localhost:3001/api/audit';
-      
+
       const response = await fetch(apiUrl, {
         method: 'POST',
-        body: formData,
+        body: auditFormData,
       });
 
       if (!response.ok) {
@@ -61,6 +80,13 @@ function AppContent() {
       const data = await response.json();
       setAuditData(data);
       sessionStorage.setItem('mainAuditData', JSON.stringify(data));
+
+      // Wait for user data to complete (best effort, don't block UI)
+      await Promise.race([
+        sendUserDataPromise,
+        new Promise(resolve => setTimeout(resolve, 5000)) // 5 second timeout
+      ]);
+
     } catch (error) {
       console.error('Audit error:', error);
       const reason = (error as Error).message || 'Request failed';

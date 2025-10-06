@@ -52,24 +52,9 @@ export class AuditController {
         return;
       }
 
-      // Send user data to external API immediately (non-blocking)
-      if (name && email) {
-        const dbUrl = 'https://qa-lywebsite.ly.design/uxaudit/';
-        console.log(`📤 Sending user data (${name}, ${email}) to ${dbUrl}...`);
-
-        const formData = new FormData();
-        formData.append('name', name.trim());
-        formData.append('email', email.trim());
-
-        // Send asynchronously without blocking the audit
-        fetch(dbUrl, {
-          method: 'POST',
-          body: formData as any,
-          headers: formData.getHeaders()
-        })
-          .then(() => console.log('✅ User data sent to external API'))
-          .catch((err) => console.error('❌ Failed to send user data to external API:', err.message));
-      }
+      // User data is now sent from frontend directly when "Analyse UX" is clicked
+      // Backend only needs to store name/email for later use in email sending
+      console.log(`👤 User info received: ${name} (${email})`);
 
       let imageBase64: string | undefined;
       let auditUrl: string | undefined;
@@ -204,10 +189,26 @@ export class AuditController {
     try {
       const { auditData, recipientEmail, recipientName, platformName } = req.body;
 
+      // Debug logging
+      console.log('📥 Share report request received');
+      console.log('Request body keys:', Object.keys(req.body));
+      console.log('auditData present:', !!auditData);
+      console.log('recipientEmail:', recipientEmail);
+      console.log('recipientName:', recipientName);
+      console.log('platformName:', platformName);
+
       // Validate required fields
       if (!auditData || !recipientEmail || !recipientName || !platformName) {
+        const missing = [];
+        if (!auditData) missing.push('auditData');
+        if (!recipientEmail) missing.push('recipientEmail');
+        if (!recipientName) missing.push('recipientName');
+        if (!platformName) missing.push('platformName');
+
         res.status(400).json({
-          error: 'Missing required fields. Need: auditData, recipientEmail, recipientName, platformName'
+          error: 'Missing required fields',
+          missing: missing,
+          received: Object.keys(req.body)
         });
         return;
       }
@@ -242,23 +243,52 @@ export class AuditController {
       try {
         console.log(`📄 Generating PDF report for ${sanitizedPlatform}...`);
         const pdfBuffer = await this.pdfService.generateAuditReport(auditData, sanitizedPlatform);
+        console.log(`✅ PDF generated successfully, size: ${pdfBuffer.length} bytes`);
 
-        // Send PDF to database with name and email as FormData
+        // Send PDF to database with name and email as FormData (non-blocking)
         const dbUrl = 'https://qa-lywebsite.ly.design/uxaudit/';
-        console.log(`🚀 Sending PDF with user data to database at ${dbUrl}...`);
+        const pdfFilename = `${sanitizedPlatform.replace(/[^a-zA-Z0-9]/g, '-')}-ux-audit-report.pdf`;
+
+        console.log(`🚀 Preparing to send PDF to database...`);
+        console.log(`   Database URL: ${dbUrl}`);
+        console.log(`   PDF Filename: ${pdfFilename}`);
+        console.log(`   PDF Size: ${pdfBuffer.length} bytes`);
+        console.log(`   Name: ${sanitizedName}`);
+        console.log(`   Email: ${recipientEmail}`);
 
         const formData = new FormData();
         formData.append('name', sanitizedName);
         formData.append('email', recipientEmail);
         formData.append('file', pdfBuffer, {
-          filename: `${sanitizedPlatform.replace(/[^a-zA-Z0-9]/g, '-')}-ux-audit-report.pdf`,
+          filename: pdfFilename,
           contentType: 'application/pdf'
         });
 
+        console.log(`📤 Initiating POST request to database...`);
+
+        // Don't block on external API - send email first as priority
         const sendPdfToDb = fetch(dbUrl, {
           method: 'POST',
           body: formData as any,
-          headers: formData.getHeaders()
+          headers: formData.getHeaders(),
+          signal: AbortSignal.timeout(10000) // 10 second timeout
+        }).then(async (response) => {
+          console.log(`📊 Database API response status: ${response.status}`);
+          if (!response.ok) {
+            const errorText = await response.text().catch(() => 'Unable to read error');
+            console.error(`❌ External DB endpoint failed with status ${response.status}`);
+            console.error(`❌ Error response: ${errorText}`);
+            return null;
+          } else {
+            const responseData = await response.text().catch(() => 'Success (no body)');
+            console.log('✅ PDF sent to external DB successfully');
+            console.log(`✅ DB Response: ${responseData}`);
+            return response;
+          }
+        }).catch(err => {
+          console.error(`❌ External DB endpoint network error: ${err.message}`);
+          console.error(`❌ Error details:`, err);
+          return null; // Don't fail the whole operation
         });
 
         console.log(`📧 Sending report to ${recipientEmail} via Brevo...`);
@@ -269,19 +299,49 @@ export class AuditController {
           pdfBuffer
         );
 
-        await Promise.all([sendPdfToDb, sendEmail]);
+        // Wait for email (critical) and DB (best-effort)
+        const [dbResult, emailResult] = await Promise.allSettled([sendPdfToDb, sendEmail]);
+
+        // Log detailed results
+        console.log(`\n📋 === FINAL RESULTS ===`);
+        console.log(`Database Upload Status: ${dbResult.status}`);
+        if (dbResult.status === 'fulfilled' && dbResult.value) {
+          console.log(`   ✅ Database: PDF uploaded successfully`);
+        } else if (dbResult.status === 'rejected') {
+          console.log(`   ❌ Database: Upload failed - ${dbResult.reason}`);
+        } else {
+          console.log(`   ⚠️ Database: Upload skipped or returned null`);
+        }
+
+        console.log(`Email Status: ${emailResult.status}`);
+        if (emailResult.status === 'fulfilled') {
+          console.log(`   ✅ Email: Sent successfully via Brevo`);
+        } else {
+          console.log(`   ❌ Email: Failed - ${emailResult.reason}`);
+        }
+        console.log(`======================\n`);
+
+        // Check if email was sent successfully (critical)
+        if (emailResult.status === 'rejected') {
+          throw new Error(`Email delivery failed: ${emailResult.reason?.message || 'Unknown error'}`);
+        }
+
+        const dbStatusForResponse = dbResult.status === 'fulfilled' && dbResult.value ? 'sent' : 'failed';
 
         res.json({
           success: true,
           message: `Audit report sent successfully to ${recipientEmail}`,
           to: recipientEmail,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          dbStatus: dbStatusForResponse
         });
       } catch (sendErr: any) {
         console.error('❌ PDF/Email send error:', sendErr);
+        console.error('Error stack:', sendErr.stack);
         res.status(500).json({
           error: 'Failed to generate or send report',
-          message: sendErr?.message || 'Unknown error'
+          message: sendErr?.message || 'Unknown error',
+          details: process.env.NODE_ENV === 'development' ? sendErr.stack : undefined
         });
       }
 
