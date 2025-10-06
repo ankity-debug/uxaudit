@@ -6,7 +6,7 @@ import LycheeBrandingPopup from './LycheeBrandingPopup';
 import { saveUserData, validateEmail, validateName } from '../utils/userStorage';
 
 interface AuditFormProps {
-  onSubmit: (input: { type: 'url' | 'image'; value: string | File }) => void;
+  onSubmit: (input: { type: 'url' | 'image'; value: string | File; name: string; email: string }) => void;
   isLoading: boolean;
 }
 
@@ -129,13 +129,13 @@ export const AuditForm: React.FC<AuditFormProps> = ({ onSubmit, isLoading }) => 
         return;
       }
       const processedUrl = url.trim().startsWith('http://') || url.trim().startsWith('https://') ? url.trim() : `https://${url.trim()}`;
-      onSubmit({ type: 'url', value: processedUrl });
+      onSubmit({ type: 'url', value: processedUrl, name, email });
     } else if (activeTab === 'image') {
       if (!uploadedFile) {
         setError('Please select an image file');
         return;
       }
-      onSubmit({ type: 'image', value: uploadedFile });
+      onSubmit({ type: 'image', value: uploadedFile, name, email });
     }
   };
 
@@ -446,15 +446,7 @@ export const AuditForm: React.FC<AuditFormProps> = ({ onSubmit, isLoading }) => 
                               transition={{ duration: 1, repeat: Infinity, delay: 0.4 }}
                             />
                           </div>
-                          <motion.span
-                            key={loadingStep}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            transition={{ duration: 0.3 }}
-                          >
-                            {loadingSteps[loadingStep]}
-                          </motion.span>
+                          <span>{loadingSteps[loadingStep]}</span>
                         </div>
                       ) : (
                         'Analyse UX'

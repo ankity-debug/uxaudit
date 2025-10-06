@@ -22,12 +22,14 @@ function AppContent() {
     }
   }, []);
 
-  const handleAuditSubmit = async (input: { type: 'url' | 'image'; value: string | File }) => {
+  const handleAuditSubmit = async (input: { type: 'url' | 'image'; value: string | File; name: string; email: string }) => {
     toast.dismiss();
     setIsLoading(true);
     try {
       const formData = new FormData();
       formData.append('type', input.type);
+      formData.append('name', input.name);
+      formData.append('email', input.email);
       
       if (input.type === 'url') {
         formData.append('url', input.value as string);

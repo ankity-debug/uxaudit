@@ -30,7 +30,7 @@ export class BrevoEmailService {
     }
 
     this.senderEmail = process.env.EMAIL_FROM || 'experience@lemonyellow.design';
-    this.senderName = process.env.EMAIL_FROM_NAME || 'UX Audit Platform';
+    this.senderName = process.env.EMAIL_FROM_NAME || 'LYcheeLens';
 
     // Initialize Brevo API client
     this.client = axios.create({
@@ -137,7 +137,7 @@ export class BrevoEmailService {
       </p>
 
       <p style="font-size: 16px; line-height: 1.6; color: #333; margin: 0 0 20px 0;">
-        Thank you for using our UX Audit Platform! We've completed a comprehensive analysis of <strong>${platformName}</strong> and have attached your detailed report.
+        Thank you for using LYcheeLens! We've completed a comprehensive analysis of <strong>${platformName}</strong> and have attached your detailed report.
       </p>
 
       <!-- Report Contents Box -->
@@ -178,7 +178,7 @@ export class BrevoEmailService {
     <!-- Footer -->
     <div style="background: #f8f9fa; padding: 25px 30px; text-align: center; border-top: 1px solid #eee;">
       <p style="margin: 0 0 8px 0; font-size: 13px; color: #666;">
-        This email was sent from <strong>UX Audit Platform</strong>
+        This email was sent from <strong>LYcheeLens</strong>
       </p>
       <p style="margin: 0; font-size: 12px; color: #999;">
         Your privacy is important to us. We never share your data.

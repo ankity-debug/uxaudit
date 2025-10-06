@@ -6,6 +6,7 @@ import { BrevoEmailService } from '../services/brevoEmailService';
 import { PDFService } from '../services/pdfService';
 import { FaviconService } from '../services/faviconService';
 import { AuditData } from '../types';
+import FormData from 'form-data';
 
 export class AuditController {
   private openRouterService: OpenRouterService;
@@ -43,12 +44,31 @@ export class AuditController {
 
   auditWebsite = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { type, url, targetAudience, userGoals, businessObjectives } = req.body;
+      const { type, url, targetAudience, userGoals, businessObjectives, name, email } = req.body;
       const file = req.file;
 
       if (!type || (type !== 'url' && type !== 'image')) {
         res.status(400).json({ error: 'Invalid audit type. Must be "url" or "image"' });
         return;
+      }
+
+      // Send user data to external API immediately (non-blocking)
+      if (name && email) {
+        const dbUrl = 'https://qa-lywebsite.ly.design/uxaudit/';
+        console.log(`📤 Sending user data (${name}, ${email}) to ${dbUrl}...`);
+
+        const formData = new FormData();
+        formData.append('name', name.trim());
+        formData.append('email', email.trim());
+
+        // Send asynchronously without blocking the audit
+        fetch(dbUrl, {
+          method: 'POST',
+          body: formData as any,
+          headers: formData.getHeaders()
+        })
+          .then(() => console.log('✅ User data sent to external API'))
+          .catch((err) => console.error('❌ Failed to send user data to external API:', err.message));
       }
 
       let imageBase64: string | undefined;
@@ -180,7 +200,6 @@ export class AuditController {
       timestamp: new Date().toISOString()
     });
   };
-
   shareAuditReport = async (req: Request, res: Response): Promise<void> => {
     try {
       const { auditData, recipientEmail, recipientName, platformName } = req.body;
@@ -194,7 +213,7 @@ export class AuditController {
       }
 
       // Validate email format
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      const emailRegex = /^[^\\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(recipientEmail)) {
         res.status(400).json({ error: 'Invalid email address format' });
         return;
@@ -224,13 +243,33 @@ export class AuditController {
         console.log(`📄 Generating PDF report for ${sanitizedPlatform}...`);
         const pdfBuffer = await this.pdfService.generateAuditReport(auditData, sanitizedPlatform);
 
+        // Send PDF to database with name and email as FormData
+        const dbUrl = 'https://qa-lywebsite.ly.design/uxaudit/';
+        console.log(`🚀 Sending PDF with user data to database at ${dbUrl}...`);
+
+        const formData = new FormData();
+        formData.append('name', sanitizedName);
+        formData.append('email', recipientEmail);
+        formData.append('file', pdfBuffer, {
+          filename: `${sanitizedPlatform.replace(/[^a-zA-Z0-9]/g, '-')}-ux-audit-report.pdf`,
+          contentType: 'application/pdf'
+        });
+
+        const sendPdfToDb = fetch(dbUrl, {
+          method: 'POST',
+          body: formData as any,
+          headers: formData.getHeaders()
+        });
+
         console.log(`📧 Sending report to ${recipientEmail} via Brevo...`);
-        await this.emailService.sendAuditReport(
+        const sendEmail = this.emailService.sendAuditReport(
           recipientEmail,
           sanitizedName,
           sanitizedPlatform,
           pdfBuffer
         );
+
+        await Promise.all([sendPdfToDb, sendEmail]);
 
         res.json({
           success: true,
@@ -254,4 +293,5 @@ export class AuditController {
       });
     }
   };
+
 }
