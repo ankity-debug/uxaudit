@@ -8,7 +8,7 @@ const app = express();
 // CORS Configuration
 const corsOptions = {
   origin: process.env.NODE_ENV === 'production'
-    ? ['https://auditgit.vercel.app', 'https://lemonyellow.design', 'http://localhost:3000']
+    ? ['https://lycheelens.ly.design/', 'https://lemonyellow.design', 'http://localhost:3000']
     : true, // Allow all origins in development
   credentials: true,
   optionsSuccessStatus: 200,
