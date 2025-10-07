@@ -214,11 +214,11 @@ export class AuditController {
       }
 
       // Validate email format
-      const emailRegex = /^[^\\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(recipientEmail)) {
-        res.status(400).json({ error: 'Invalid email address format' });
-        return;
-      }
+      // const emailRegex = /^[^\\s@]+@[^\s@]+\.[^\s@]+$/;
+      // if (!emailRegex.test(recipientEmail)) {
+      //   res.status(400).json({ error: 'Invalid email address format' });
+      //   return;
+      // }
 
       // Validate string lengths to prevent abuse
       if (recipientName.length > 100) {
