@@ -159,10 +159,14 @@ export class BrevoEmailService {
         We hope this analysis helps you enhance your user experience and achieve your business objectives.
       </p>
 
-      <!-- CTA Button -->
+      <!-- CTA Buttons -->
       <div style="text-align: center; margin: 35px 0;">
-        <a href="https://lemonyellow.design" style="display: inline-block; background: #EF4171; color: white; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 15px;">
+        <a href="https://lemonyellow.design" style="display: inline-block; background: #EF4171; color: white; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 15px; margin-bottom: 12px;">
           Visit Our Website
+        </a>
+        <br>
+        <a href="https://lycheelens.ly.design" style="display: inline-block; background: transparent; color: #EF4171; padding: 13px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 15px; border: 2px solid #EF4171;">
+          Try LycheeLens
         </a>
       </div>
 

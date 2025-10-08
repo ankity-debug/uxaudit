@@ -447,6 +447,32 @@ export class PDFService {
     .journey-section-title { font-size: 11px; font-weight: 600; color: #374151; margin-top: 8px; margin-bottom: 4px; }
     .journey-list { font-size: 11px; color: #4b5563; line-height: 1.5; padding-left: 16px; }
 
+    /* Footer - Powered by Lemon Yellow */
+    .powered-by-footer {
+      margin-top: 40px;
+      padding: 20px;
+      text-align: center;
+      border-top: 2px solid #e5e7eb;
+      page-break-inside: avoid;
+    }
+    .powered-by-text {
+      font-size: 12px;
+      color: #6b7280;
+      margin-bottom: 8px;
+    }
+    .powered-by-link {
+      color: #EF4171;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 14px;
+      display: inline-block;
+      transition: color 0.2s;
+    }
+    .powered-by-link:hover {
+      color: #D93A63;
+      text-decoration: underline;
+    }
+
     @media print {
       .container { padding: 10px; }
       .section { margin: 20px 0; }
@@ -732,6 +758,12 @@ export class PDFService {
       ` : ''}
     </div>
     ` : ''}
+
+    <!-- Footer - Powered by Lemon Yellow -->
+    <div class="powered-by-footer">
+      <div class="powered-by-text">Powered by</div>
+      <a href="https://lemonyellow.design" class="powered-by-link" target="_blank">Lemon Yellow</a>
+    </div>
 
   </div>
 </body>
