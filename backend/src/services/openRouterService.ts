@@ -87,11 +87,11 @@ export class OpenRouterService {
   }
 
   async analyzeWithContext(contextualPrompt: string, imageBase64?: string): Promise<AuditData> {
-    // FULL QUALITY: Use Qwen 2.5 VL for best analysis
-    const model = 'deepseek/deepseek-chat-v3.1:free';
+    const MODEL = 'alibaba/tongyi-deepresearch-30b-a3b:free';
+    console.log(`🤖 Using model: ${MODEL} (image: ${!!imageBase64})`);
 
-    try {
-      const makeMessages = (withImage: boolean) => ([
+    const tryModel = async (withImage: boolean): Promise<any> => {
+      const makeMessages = () => ([
         {
           role: 'user',
           content: withImage && imageBase64 ? [
@@ -101,33 +101,37 @@ export class OpenRouterService {
         } as any
       ]);
 
-      const doRequest = async (withImage: boolean) => {
-        return axios.post(this.baseURL, {
-          model: model,
-          messages: makeMessages(withImage),
-          temperature: 0.1,
-          max_tokens: 4096 // Full token allowance
-        }, {
-          headers: {
-            'Authorization': `Bearer ${this.apiKey}`,
-            'Content-Type': 'application/json',
-            'HTTP-Referer': 'https://lemonyellow.design',
-            'X-Title': 'lycheeLens UX Audit Tool'
-          },
-          timeout: 300000 // 5 minutes for quality analysis
-        });
-      };
+      return axios.post(this.baseURL, {
+        model: MODEL,
+        messages: makeMessages(),
+        temperature: 0.1,
+        max_tokens: 4096
+      }, {
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://lemonyellow.design',
+          'X-Title': 'lycheeLens UX Audit Tool'
+        },
+        timeout: 300000
+      });
+    };
 
+    try {
       let response;
+
+      // Try with image if provided
       try {
-        response = await doRequest(true);
+        response = await tryModel(!!imageBase64);
       } catch (e: any) {
-        // If model rejects images, retry text-only once for this model
-        const status = e?.response?.status;
-        const msg = e?.response?.data?.error?.message || e?.message || '';
-        const imageUnsupported = /image input|image not supported|no endpoints.*image/i.test(msg);
-        if (imageBase64 && (status === 400 || status === 404 || status === 415 || imageUnsupported)) {
-          response = await doRequest(false);
+        const errorMsg = e?.response?.data?.error?.message || e?.message || '';
+        console.error('Model request failed:', JSON.stringify(e?.response?.data || e.message, null, 2));
+
+        // If image not supported, retry without image
+        const isImageError = /image input|image not supported|no endpoints.*image/i.test(errorMsg);
+        if (imageBase64 && isImageError) {
+          console.warn('Image input not supported, retrying with text-only');
+          response = await tryModel(false);
         } else {
           throw e;
         }
@@ -146,7 +150,6 @@ export class OpenRouterService {
       if (!analysisText || typeof analysisText !== 'string') {
         console.error('Invalid response text:', analysisText);
         console.log('Creating fallback response due to empty AI response...');
-        // Create a minimal valid response instead of failing completely
         const fallbackPrompt: GeminiAnalysisPrompt = {
           url: 'fallback',
           analysisType: 'contextual'
@@ -155,15 +158,14 @@ export class OpenRouterService {
       }
 
       const parsedJson = this.extractJsonFromResponse(analysisText);
-      return this.parseOpenRouterResponse(parsedJson, { url: 'contextual', analysisType: 'contextual' }, model);
+      return this.parseOpenRouterResponse(parsedJson, { url: 'contextual', analysisType: 'contextual' }, MODEL);
 
     } catch (error: any) {
-      console.error(`Contextual OpenRouter API error with ${model}:`, error.response?.data || error.message);
+      console.error(`Contextual OpenRouter API error:`, JSON.stringify(error?.response?.data || error.message, null, 2));
 
       // If JSON parsing fails or response is invalid, create a fallback response
       if (error.message && (error.message.includes('AI response is not valid JSON') || error.message.includes('AI response is empty or invalid'))) {
         console.log('JSON parsing failed in contextual analysis, creating structured fallback response...');
-        // Create a minimal valid response instead of failing completely
         const fallbackPrompt: GeminiAnalysisPrompt = {
           url: 'fallback',
           analysisType: 'contextual'
@@ -171,7 +173,8 @@ export class OpenRouterService {
         return this.createDemoResponse(fallbackPrompt);
       }
 
-      throw new Error(`Contextual AI analysis failed: ${error.response?.data?.error || error.message || 'Unknown analysis error'}`);
+      const errorMessage = error?.response?.data?.error?.message || error?.message || JSON.stringify(error);
+      throw new Error(`Contextual AI analysis failed: ${errorMessage}`);
     }
   }
 
