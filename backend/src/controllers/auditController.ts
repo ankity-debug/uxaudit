@@ -246,7 +246,7 @@ export class AuditController {
         console.log(`✅ PDF generated successfully, size: ${pdfBuffer.length} bytes`);
 
         // Send PDF to database with name and email as FormData (non-blocking)
-        const dbUrl = 'https://qa-lywebsite.ly.design/uxaudit/';
+        const dbUrl = 'https://lemonyellow.design/uxaudit/';
         const pdfFilename = `${sanitizedPlatform.replace(/[^a-zA-Z0-9]/g, '-')}-ux-audit-report.pdf`;
 
         console.log(`🚀 Preparing to send PDF to database...`);
