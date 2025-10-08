@@ -104,8 +104,8 @@ export class OpenRouterService {
       return axios.post(this.baseURL, {
         model: MODEL,
         messages: makeMessages(),
-        temperature: 0.1,
-        max_tokens: 4096
+        temperature: 0.1
+        // No max_tokens limit - let the model respond freely
       }, {
         headers: {
           'Authorization': `Bearer ${this.apiKey}`,
@@ -855,7 +855,7 @@ Response format: Valid JSON only, starting with { and ending with }`;
       let jsonEnd = responseText.lastIndexOf('}');
 
       if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
-        const jsonString = responseText.substring(jsonStart, jsonEnd + 1);
+        let jsonString = responseText.substring(jsonStart, jsonEnd + 1);
         console.log('Extracted JSON length:', jsonString.length);
         console.log('Last 100 chars of extracted JSON:', jsonString.substring(jsonString.length - 100));
 
@@ -866,20 +866,69 @@ Response format: Valid JSON only, starting with { and ending with }`;
         } catch (extractError: any) {
           console.error('Failed to parse extracted JSON');
           console.error('Parse error:', extractError.message);
+          console.error('Error position:', extractError.message.match(/position (\d+)/)?.[1]);
           console.error('First 500 chars:', jsonString.substring(0, 500));
           console.error('Last 500 chars:', jsonString.substring(Math.max(0, jsonString.length - 500)));
 
-          // Try to fix common JSON issues
+          // Try multiple JSON fixes in sequence
+          let fixed = jsonString;
+
+          // Fix 1: Remove markdown code blocks
+          fixed = fixed.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+
+          // Fix 2: Remove trailing commas before closing braces/brackets
+          fixed = fixed.replace(/,(\s*[}\]])/g, '$1');
+
+          // Try parsing after basic fixes
           try {
-            // Remove trailing commas before closing braces/brackets
-            let fixed = jsonString.replace(/,(\s*[}\]])/g, '$1');
             const parsed = JSON.parse(fixed);
-            console.log('✅ Fixed and parsed JSON with trailing comma removal');
+            console.log('✅ Fixed and parsed JSON with basic fixes');
             return parsed;
-          } catch (fixError) {
-            console.error('Could not fix JSON with trailing comma removal');
-            throw new Error('AI response is not valid JSON');
+          } catch (stillBroken: any) {
+            console.log('Basic fixes failed, attempting smart truncation...');
+
+            // Fix 3: Smart truncation - find where JSON breaks and close it properly
+            const errorMatch = stillBroken.message.match(/position (\d+)/);
+            if (errorMatch) {
+              const errorPos = parseInt(errorMatch[1]);
+              console.log(`Truncating at position ${errorPos} of ${fixed.length}`);
+
+              // Find the last complete object/array before error
+              let truncated = fixed.substring(0, errorPos);
+
+              // Remove any incomplete trailing structure
+              // Remove incomplete key-value pair or array element
+              truncated = truncated.replace(/,?\s*"[^"]*"\s*:\s*"[^"]*$/, ''); // Incomplete string value
+              truncated = truncated.replace(/,?\s*"[^"]*"\s*:\s*\{[^}]*$/, ''); // Incomplete object value
+              truncated = truncated.replace(/,?\s*"[^"]*"\s*:\s*\[[^\]]*$/, ''); // Incomplete array value
+              truncated = truncated.replace(/,?\s*"[^"]*"\s*:\s*[^,}\]]*$/, ''); // Incomplete primitive value
+              truncated = truncated.replace(/,?\s*"[^"]*"\s*:?\s*$/, ''); // Incomplete key
+              truncated = truncated.replace(/,\s*$/, ''); // Trailing comma
+
+              // Count unclosed brackets/braces
+              const openBraces = (truncated.match(/{/g) || []).length;
+              const closeBraces = (truncated.match(/}/g) || []).length;
+              const openBrackets = (truncated.match(/\[/g) || []).length;
+              const closeBrackets = (truncated.match(/\]/g) || []).length;
+
+              console.log(`Unclosed structures: { ${openBraces - closeBraces}, [ ${openBrackets - closeBrackets}`);
+
+              // Close unclosed structures in correct order
+              for (let i = 0; i < (openBrackets - closeBrackets); i++) truncated += ']';
+              for (let i = 0; i < (openBraces - closeBraces); i++) truncated += '}';
+
+              try {
+                const parsed = JSON.parse(truncated);
+                console.log('✅ Fixed and parsed JSON with smart truncation');
+                return parsed;
+              } catch (stillFailed) {
+                console.error('Smart truncation failed:', stillFailed);
+              }
+            }
           }
+
+          console.error('Could not fix JSON with any recovery method');
+          throw new Error('AI response is not valid JSON');
         }
       }
 
