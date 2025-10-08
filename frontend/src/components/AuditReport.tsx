@@ -780,10 +780,10 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
 
           {/* Metrics Row - Only show if AI has generated scores */}
           {((data as any).scores?.overall || getCategoryScores().length > 0) && (
-          <div className="flex justify-between items-end">
+          <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-6">
             {/* Overall Score - Only show if available */}
             {(data as any).scores?.overall && (
-            <div className="flex flex-col items-center text-center">
+            <div className="flex flex-col items-center text-center mx-auto md:mx-0">
               <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center text-2xl font-bold text-gray-900 shadow-lg mb-3">
                 {(() => {
                   const ov: any = (data as any).scores?.overall || {};
@@ -799,9 +799,9 @@ export const AuditReport: React.FC<AuditReportProps> = ({ data }) => {
             </div>
             )}
 
-            {/* Key Metrics Grid - Only show if we have category scores */}
+            {/* Key Metrics Grid - 2x2 on mobile, responsive on desktop */}
             {getCategoryScores().length > 0 && (
-            <div className={`grid gap-4 ${getCategoryScores().length <= 2 ? 'grid-cols-2' : getCategoryScores().length === 3 ? 'grid-cols-3' : 'grid-cols-4'}`}>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full md:w-auto">
               {getCategoryScores().map((category, i) => (
                 <div key={i} className="flex flex-col items-center text-center">
                   <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center text-sm font-semibold text-gray-900 mb-3 shadow-lg">
